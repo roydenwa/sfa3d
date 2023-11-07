@@ -29,13 +29,17 @@ def main(log_level: int = rospy.ERROR):
         front_bevmap = load_bevmap_front(point_cloud)
 
         with torch.no_grad():
-            detections, bev_map, fps = do_detect(configs, model, front_bevmap, is_front=True)
-        
+            detections, bev_map, fps = do_detect(
+                configs, model, front_bevmap, is_front=True
+            )
+
         bev_map = (bev_map.permute(1, 2, 0).numpy() * 255).astype(np.uint8)
         bev_map = cv2.resize(bev_map, (cnf.BEV_WIDTH, cnf.BEV_HEIGHT))
         bev_map = draw_predictions(bev_map, detections, configs.num_classes)
         bev_map = cv2.rotate(bev_map, cv2.ROTATE_180)
-        debug_img = merge_rgb_to_bev(front_img, bev_map, output_width=configs.output_width)
+        debug_img = merge_rgb_to_bev(
+            front_img, bev_map, output_width=configs.output_width
+        )
         debug_img_ros = cv2_to_imgmsg(debug_img)
         debug_img_pub.publish(debug_img_ros)
 
@@ -47,10 +51,12 @@ def main(log_level: int = rospy.ERROR):
         bbox_pub.publish(rosboxes)
 
     configs = parse_demo_configs()
-    configs.device = torch.device('cpu' if configs.no_cuda else 'cuda:{}'.format(configs.gpu_idx))
+    configs.device = torch.device(
+        "cpu" if configs.no_cuda else "cuda:{}".format(configs.gpu_idx)
+    )
 
     model = create_model(configs)
-    model.load_state_dict(torch.load(configs.pretrained_path, map_location='cpu'))
+    model.load_state_dict(torch.load(configs.pretrained_path, map_location="cpu"))
     model = model.to(configs.device)
 
     rospy.init_node("sfa3d_detector", log_level=log_level)
@@ -104,6 +110,7 @@ def preprocess_point_cloud(pc):
 
     return points_32
 
+
 def cv2_to_imgmsg(cv_image):
     img_msg = Image()
     img_msg.height = cv_image.shape[0]
@@ -135,7 +142,7 @@ def bboxes_to_rosmsg(bboxes, timestamp):
         # float32 value
         # uint32 label
         cls_id, x, y, z, h, w, l, yaw = bbox
-        
+
         rosbox = BoundingBox()
         rosbox.header.stamp = timestamp
         rosbox.header.frame_id = "sensor/lidar/box_top/center/vls128_ap"
@@ -154,8 +161,8 @@ def bboxes_to_rosmsg(bboxes, timestamp):
         rosbox.dimensions.y = w
         rosbox.dimensions.z = h
 
-        rosbox.label = np.uint(cls_id) # TODO: convert from KITTI to Joy classes
-        
+        rosbox.label = np.uint(cls_id)  # TODO: convert from KITTI to Joy classes
+
         rosboxes.boxes.append(rosbox)
 
     rosboxes.header.frame_id = "sensor/lidar/box_top/center/vls128_ap"
