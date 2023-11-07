@@ -19,11 +19,9 @@ from models.model_utils import create_model
 from utils.demo_utils import parse_demo_configs, do_detect
 from utils.visualization_utils import merge_rgb_to_bev
 
-idx = 0
 
 def main(log_level: int = rospy.ERROR):
     def perception_callback(*data):
-        global idx
         point_cloud = pcl.PointCloud(data[0])
         front_img = opencv_bridge.imgmsg_to_cv2(data[1])
 
@@ -47,8 +45,6 @@ def main(log_level: int = rospy.ERROR):
         rosboxes = bboxes_to_rosmsg(bboxes, data[0].header.stamp)
 
         bbox_pub.publish(rosboxes)
-        idx += 1
-
 
     configs = parse_demo_configs()
     configs.device = torch.device('cpu' if configs.no_cuda else 'cuda:{}'.format(configs.gpu_idx))
