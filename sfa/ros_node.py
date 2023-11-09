@@ -32,6 +32,7 @@ def main(log_level: int = rospy.ERROR):
             detections, bev_map, fps = do_detect(
                 configs, model, front_bevmap, is_front=True
             )
+        print(f"fps: {fps}")
 
         bev_map = (bev_map.permute(1, 2, 0).numpy() * 255).astype(np.uint8)
         bev_map = cv2.resize(bev_map, (cnf.BEV_WIDTH, cnf.BEV_HEIGHT))
@@ -45,7 +46,6 @@ def main(log_level: int = rospy.ERROR):
 
         # [cls_id, x, y, z, _h, w, l, _yaw]
         bboxes = convert_det_to_real_values(detections=detections)
-        print(f"bboxes: {bboxes}")
         rosboxes = bboxes_to_rosmsg(bboxes, data[0].header.stamp)
 
         bbox_pub.publish(rosboxes)
