@@ -20,7 +20,7 @@ from utils.demo_utils import parse_demo_configs, do_detect
 from utils.visualization_utils import merge_rgb_to_bev
 
 
-def main(log_level: int = rospy.ERROR):
+def main(log_level: int = rospy.ERROR) -> None:
     def perception_callback(*data):
         point_cloud = pcl.PointCloud(data[0])
         front_img = opencv_bridge.imgmsg_to_cv2(data[1])
@@ -95,7 +95,7 @@ def main(log_level: int = rospy.ERROR):
     rospy.spin()
 
 
-def preprocess_point_cloud(pc):
+def preprocess_point_cloud(pc: pcl.PointCloud) -> np.ndarray:
     pcd_np = pc.to_ndarray()
     x = pcd_np["x"]
     x = np.nan_to_num(x, nan=0.0)
@@ -111,7 +111,7 @@ def preprocess_point_cloud(pc):
     return points_32
 
 
-def cv2_to_imgmsg(cv_image):
+def cv2_to_imgmsg(cv_image: np.ndarray) -> Image:
     img_msg = Image()
     img_msg.height = cv_image.shape[0]
     img_msg.width = cv_image.shape[1]
@@ -128,7 +128,7 @@ def cv2_to_imgmsg(cv_image):
     return img_msg
 
 
-def bboxes_to_rosmsg(bboxes, timestamp):
+def bboxes_to_rosmsg(bboxes: list, timestamp) -> BoundingBoxArray:
     # TODO: JIT (numba)
     rosboxes = BoundingBoxArray()
 
