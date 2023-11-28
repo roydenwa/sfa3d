@@ -44,7 +44,7 @@ def main(log_level: int = rospy.ERROR):
         debug_img_ros = cv2_to_imgmsg(debug_img)
         debug_img_pub.publish(debug_img_ros)
 
-        # [cls_id, x, y, z, _h, w, l, _yaw]
+        # [confidence, cls_id, x, y, z, h, w, l, yaw]
         bboxes = convert_det_to_real_values(detections=detections)
         rosboxes = bboxes_to_rosmsg(bboxes, data[0].header.stamp)
 
@@ -141,7 +141,7 @@ def bboxes_to_rosmsg(bboxes, timestamp):
         # # You can use this field to hold value such as likelihood
         # float32 value
         # uint32 label
-        cls_id, x, y, z, h, w, l, yaw = bbox
+        confidence, cls_id, x, y, z, h, w, l, yaw = bbox
 
         rosbox = BoundingBox()
         rosbox.header.stamp = timestamp
@@ -162,6 +162,7 @@ def bboxes_to_rosmsg(bboxes, timestamp):
         rosbox.dimensions.z = h
 
         rosbox.label = np.uint(cls_id)  # TODO: convert from KITTI to Joy classes
+        rosbox.value = confidence
 
         rosboxes.boxes.append(rosbox)
 
