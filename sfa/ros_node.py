@@ -130,17 +130,9 @@ def cv2_to_imgmsg(cv_image):
 
 def bboxes_to_rosmsg(bboxes, timestamp):
     # TODO: JIT (numba)
-    # [cls_id, x, y, z, _h, w, l, _yaw]
     rosboxes = BoundingBoxArray()
 
     for bbox in bboxes:
-        # http://otamachan.github.io/sphinxros/indigo/packages/jsk_recognition_msgs.html#message-jsk_recognition_msgs/BoundingBox
-        # Header header
-        # geometry_msgs/Pose pose
-        # geometry_msgs/Vector3 dimensions  # size of bounding box (x, y, z)
-        # # You can use this field to hold value such as likelihood
-        # float32 value
-        # uint32 label
         confidence, cls_id, x, y, z, h, w, l, yaw = bbox
 
         rosbox = BoundingBox()
