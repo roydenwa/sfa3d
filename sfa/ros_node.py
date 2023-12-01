@@ -40,6 +40,17 @@ def main(log_level: int = rospy.ERROR) -> None:
                 "maxZ": 1.27,
             }
         )
+        back_bevmap = load_bevmap_front(
+            point_cloud,
+            boundary={
+                "minX": -50,
+                "maxX": 0,
+                "minY": -25,
+                "maxY": 25,
+                "minZ": -2.73,
+                "maxZ": 1.27
+            }
+        )
 
         with torch.no_grad():
             detections_0, bev_map_0, fps_0 = do_detect(
@@ -48,7 +59,11 @@ def main(log_level: int = rospy.ERROR) -> None:
             detections_1, bev_map_1, fps_1 = do_detect(
                 configs, model, front_bevmap_1, is_front=True, peak_thresh=0.4, class_idx=1, # Only vehicles
             )
-        print(f"fps: {(fps_0 + fps_1) / 4}")
+            detections_2, bev_map_2, fps_2 = do_detect(
+                configs, model, back_bevmap, is_front=False,
+            )
+
+        print(f"fps: {(fps_0) / 3}")
 
         bev_map_1 = (bev_map_1.permute(1, 2, 0).numpy() * 255).astype(np.uint8)
         bev_map_1 = cv2.resize(bev_map_1, (cnf.BEV_WIDTH, cnf.BEV_HEIGHT))
@@ -64,11 +79,16 @@ def main(log_level: int = rospy.ERROR) -> None:
         # [confidence, cls_id, x, y, z, h, w, l, yaw]
         bboxes_0 = convert_det_to_real_values(detections=detections_0)
         bboxes_1 = convert_det_to_real_values(detections=detections_1, x_offset=50)
-        
-        if bboxes_1.shape[0] and bboxes_0.shape[0]:
-            bboxes = np.concatenate((bboxes_0, bboxes_1), axis=0)
-        else:
-            bboxes = bboxes_0
+        bboxes_2 = convert_det_to_real_values(detections=detections_2, backwards=True)
+
+        bboxes = np.array([], dtype=np.float).reshape(0, 9)
+        if bboxes_0.shape[0]:
+            bboxes = np.concatenate((bboxes, bboxes_0), axis=0)
+        if bboxes_1.shape[0]:
+            bboxes = np.concatenate((bboxes, bboxes_1), axis=0)
+        if bboxes_2.shape[0]:
+            bboxes = np.concatenate((bboxes, bboxes_2), axis=0)
+
         rosboxes = bboxes_to_rosmsg(bboxes, data[0].header.stamp)
 
         bbox_pub.publish(rosboxes)
