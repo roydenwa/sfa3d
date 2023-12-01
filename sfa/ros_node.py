@@ -26,26 +26,49 @@ def main(log_level: int = rospy.ERROR) -> None:
         front_img = opencv_bridge.imgmsg_to_cv2(data[1])
 
         point_cloud = preprocess_point_cloud(point_cloud)
-        front_bevmap = load_bevmap_front(point_cloud)
+        
+        front_bevmap_0 = load_bevmap_front(point_cloud)
+        front_bevmap_1 = load_bevmap_front(
+            point_cloud, 
+            n_lasers=64, 
+            boundary={
+                "minX": 50,
+                "maxX": 100,
+                "minY": -25,
+                "maxY": 25,
+                "minZ": -2.73,
+                "maxZ": 1.27,
+            }
+        )
 
         with torch.no_grad():
-            detections, bev_map, fps = do_detect(
-                configs, model, front_bevmap, is_front=True
+            detections_0, bev_map_0, fps_0 = do_detect(
+                configs, model, front_bevmap_0, is_front=True
             )
-        print(f"fps: {fps}")
+            detections_1, bev_map_1, fps_1 = do_detect(
+                configs, model, front_bevmap_1, is_front=True, peak_thresh=0.4, class_idx=1, # Only vehicles
+            )
+        print(f"fps: {(fps_0 + fps_1) / 4}")
 
-        bev_map = (bev_map.permute(1, 2, 0).numpy() * 255).astype(np.uint8)
-        bev_map = cv2.resize(bev_map, (cnf.BEV_WIDTH, cnf.BEV_HEIGHT))
-        bev_map = draw_predictions(bev_map, detections, configs.num_classes)
-        bev_map = cv2.rotate(bev_map, cv2.ROTATE_180)
+        bev_map_1 = (bev_map_1.permute(1, 2, 0).numpy() * 255).astype(np.uint8)
+        bev_map_1 = cv2.resize(bev_map_1, (cnf.BEV_WIDTH, cnf.BEV_HEIGHT))
+        bev_map_1 = draw_predictions(bev_map_1, detections_1, configs.num_classes)
+        bev_map_1 = cv2.rotate(bev_map_1, cv2.ROTATE_180)
         debug_img = merge_rgb_to_bev(
-            front_img, bev_map, output_width=configs.output_width
+            front_img, bev_map_1, output_width=configs.output_width
         )
+
         debug_img_ros = cv2_to_imgmsg(debug_img)
         debug_img_pub.publish(debug_img_ros)
 
         # [confidence, cls_id, x, y, z, h, w, l, yaw]
-        bboxes = convert_det_to_real_values(detections=detections)
+        bboxes_0 = convert_det_to_real_values(detections=detections_0)
+        bboxes_1 = convert_det_to_real_values(detections=detections_1, x_offset=50)
+        
+        if bboxes_1.shape[0] and bboxes_0.shape[0]:
+            bboxes = np.concatenate((bboxes_0, bboxes_1), axis=0)
+        else:
+            bboxes = bboxes_0
         rosboxes = bboxes_to_rosmsg(bboxes, data[0].header.stamp)
 
         bbox_pub.publish(rosboxes)

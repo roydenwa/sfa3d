@@ -119,7 +119,7 @@ def get_yaw(direction):
     return np.arctan2(direction[:, 0:1], direction[:, 1:2])
 
 
-def post_processing(detections, num_classes=3, down_ratio=4, peak_thresh=0.2):
+def post_processing(detections, num_classes=3, down_ratio=4, peak_thresh=0.2, class_idx: int = None):
     """
     :param detections: [batch_size, K, 10]
     # (scores x 1, xs x 1, ys x 1, z_coor x 1, dim x 3, direction x 2, clses x 1)
@@ -148,6 +148,10 @@ def post_processing(detections, num_classes=3, down_ratio=4, peak_thresh=0.2):
             if len(top_preds[j]) > 0:
                 keep_inds = (top_preds[j][:, 0] > peak_thresh)
                 top_preds[j] = top_preds[j][keep_inds]
+            # Workaround for vehicle-only detection
+            if class_idx and j != class_idx:
+                top_preds[j] = []
+        
         ret.append(top_preds)
 
     return ret
@@ -164,7 +168,7 @@ def draw_predictions(img, detections, num_classes=3):
     return img
 
 
-def convert_det_to_real_values(detections, num_classes=3):
+def convert_det_to_real_values(detections, num_classes=3, x_offset: int = 0):
     kitti_dets = []
     for cls_id in range(num_classes):
         if len(detections[cls_id]) > 0:
@@ -177,6 +181,7 @@ def convert_det_to_real_values(detections, num_classes=3):
                 z = _z + cnf.boundary['minZ']
                 w = _w / cnf.BEV_WIDTH * cnf.bound_size_y
                 l = _l / cnf.BEV_HEIGHT * cnf.bound_size_x
+                x += x_offset
 
                 kitti_dets.append([_score, cls_id, x, y, z, _h, w, l, _yaw])
 
