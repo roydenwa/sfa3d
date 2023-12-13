@@ -77,6 +77,7 @@ def main(log_level: int = rospy.ERROR) -> None:
         if bboxes_2.shape[0]:
             bboxes = np.concatenate((bboxes, bboxes_2), axis=0)
 
+        bboxes = bev_center_nms(bboxes)
         rosboxes = bboxes_to_rosmsg(bboxes, data[0].header.stamp)
 
         bbox_pub.publish(rosboxes)
@@ -182,6 +183,20 @@ def bboxes_to_rosmsg(bboxes: list, timestamp) -> BoundingBoxArray:
 
     return rosboxes
 
+
+def bev_center_nms(bboxes_in: np.ndarray, thresh_x: float = 1.0, thresh_y: float = 1.0) -> np.ndarray:
+    # TODO: JIT (numba)
+    bboxes_out = [] # [confidence, cls_id, x, y, z, h, w, l, yaw]  
+    bboxes_in = bboxes_in[np.lexsort((bboxes_in[:, 0], bboxes_in[:, 2], bboxes_in[:, 3]))[::-1]] # Sort in descending order
+    prev_bbox = np.zeros(9, dtype=np.float32)
+
+    for bbox in bboxes_in:
+        if not (np.abs(bbox[2] - prev_bbox[2]) < thresh_x and np.abs(bbox[3] - prev_bbox[3]) < thresh_y):
+            bboxes_out.append(bbox)
+        prev_bbox = bbox
+
+    return np.array(bboxes_out)
+    
 
 if __name__ == "__main__":
     try:
