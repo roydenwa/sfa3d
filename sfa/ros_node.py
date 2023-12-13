@@ -23,7 +23,6 @@ from utils.visualization_utils import merge_rgb_to_bev
 def main(log_level: int = rospy.ERROR) -> None:
     def perception_callback(*data):
         point_cloud = pcl.PointCloud(data[0])
-        front_img = opencv_bridge.imgmsg_to_cv2(data[1])
 
         point_cloud = preprocess_point_cloud(point_cloud)
         
@@ -32,8 +31,8 @@ def main(log_level: int = rospy.ERROR) -> None:
             point_cloud, 
             n_lasers=64, 
             boundary={
-                "minX": 50,
-                "maxX": 100,
+                "minX": 40,
+                "maxX": 90,
                 "minY": -25,
                 "maxY": 25,
                 "minZ": -2.73,
@@ -43,8 +42,8 @@ def main(log_level: int = rospy.ERROR) -> None:
         back_bevmap = load_bevmap_front(
             point_cloud,
             boundary={
-                "minX": -50,
-                "maxX": 0,
+                "minX": -40,
+                "maxX": 10,
                 "minY": -25,
                 "maxY": 25,
                 "minZ": -2.73,
@@ -63,23 +62,12 @@ def main(log_level: int = rospy.ERROR) -> None:
                 configs, model, back_bevmap, is_front=False,
             )
 
-        print(f"fps: {(fps_0) / 3}")
-
-        bev_map_1 = (bev_map_1.permute(1, 2, 0).numpy() * 255).astype(np.uint8)
-        bev_map_1 = cv2.resize(bev_map_1, (cnf.BEV_WIDTH, cnf.BEV_HEIGHT))
-        bev_map_1 = draw_predictions(bev_map_1, detections_1, configs.num_classes)
-        bev_map_1 = cv2.rotate(bev_map_1, cv2.ROTATE_180)
-        debug_img = merge_rgb_to_bev(
-            front_img, bev_map_1, output_width=configs.output_width
-        )
-
-        debug_img_ros = cv2_to_imgmsg(debug_img)
-        debug_img_pub.publish(debug_img_ros)
+        print(f"fps: {(fps_0 + fps_1 + fps_2) / 6}")
 
         # [confidence, cls_id, x, y, z, h, w, l, yaw]
         bboxes_0 = convert_det_to_real_values(detections=detections_0)
-        bboxes_1 = convert_det_to_real_values(detections=detections_1, x_offset=50)
-        bboxes_2 = convert_det_to_real_values(detections=detections_2, backwards=True)
+        bboxes_1 = convert_det_to_real_values(detections=detections_1, x_offset=40)
+        bboxes_2 = convert_det_to_real_values(detections=detections_2, backwards=True, x_offset=-10)
 
         bboxes = np.array([], dtype=np.float).reshape(0, 9)
         if bboxes_0.shape[0]:
@@ -103,20 +91,9 @@ def main(log_level: int = rospy.ERROR) -> None:
     model = model.to(configs.device)
 
     rospy.init_node("sfa3d_detector", log_level=log_level)
-    opencv_bridge = CvBridge()
 
     point_cloud_sub = message_filters.Subscriber(
         "/sensor/lidar/box_top/center/vls128_ap/points", PointCloud2
-    )
-
-    front_img_sub = message_filters.Subscriber(
-        "/sensor/camera/box_ring/front/atl071s_cc/raw/image", Image
-    )
-
-    debug_img_pub = rospy.Publisher(
-        name="/perception/sfa3d/debug_image",
-        data_class=Image,
-        queue_size=10,
     )
 
     bbox_pub = rospy.Publisher(
@@ -128,7 +105,6 @@ def main(log_level: int = rospy.ERROR) -> None:
     ts = message_filters.ApproximateTimeSynchronizer(
         fs=[
             point_cloud_sub,
-            front_img_sub,
         ],
         queue_size=10,
         slop=0.1,  # in secs
