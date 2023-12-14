@@ -12,7 +12,7 @@ from jsk_recognition_msgs.msg import BoundingBox, BoundingBoxArray
 from tf.transformations import quaternion_from_euler
 
 import config.kitti_config as cnf
-from ros_utils import load_bevmap_front, min_max_scaling
+from ros_utils import load_bevmap, min_max_scaling
 
 from utils.evaluation_utils import draw_predictions, convert_det_to_real_values
 from models.model_utils import create_model
@@ -29,8 +29,8 @@ def main(log_level: int = rospy.ERROR) -> None:
         # z_offset -> TODO: dbl check should be negative?
         point_cloud[:, 2] += 0.55
 
-        front_bevmap_0 = load_bevmap_front(point_cloud)
-        front_bevmap_1 = load_bevmap_front(
+        front_bevmap_0 = load_bevmap(point_cloud)
+        front_bevmap_1 = load_bevmap(
             point_cloud, 
             n_lasers=64, 
             boundary={
@@ -43,8 +43,9 @@ def main(log_level: int = rospy.ERROR) -> None:
             }
         )
         # 9040 config
-        back_bevmap = load_bevmap_front(
+        back_bevmap = load_bevmap(
             point_cloud,
+            is_back=True,
             boundary={
                 "minX": -40,
                 "maxX": 10,
@@ -56,7 +57,7 @@ def main(log_level: int = rospy.ERROR) -> None:
         )
         # point_cloud[:, 1] += 10 # workaround to get overlap in bag
         # T-config left
-        # back_bevmap = load_bevmap_front(
+        # back_bevmap = load_bevmap(
         #     point_cloud,
         #     boundary={
         #         "minX": -25,
@@ -67,20 +68,21 @@ def main(log_level: int = rospy.ERROR) -> None:
         #         "maxZ": 1.27
         #     },
         #     center_y=False,
+        #     is_left=True,
         # )
 
         with torch.no_grad():
             detections_0, bev_map_0, fps_0 = do_detect(
-                configs, model, front_bevmap_0, is_front=True
+                configs, model, front_bevmap_0,
             )
             detections_1, bev_map_1, fps_1 = do_detect(
-                configs, model, front_bevmap_1, is_front=True, peak_thresh=0.4, class_idx=1, # Only vehicles
+                configs, model, front_bevmap_1, peak_thresh=0.4, class_idx=1, # Only vehicles
             )
             detections_2, bev_map, fps_2 = do_detect(
                 # 9040 config
-                configs, model, back_bevmap, is_front=False,
+                configs, model, back_bevmap,
                 # T-config left
-                # configs, model, back_bevmap, is_front=True, peak_thresh=0.2, is_left=True, class_idx=1,
+                # configs, model, back_bevmap, peak_thresh=0.2, is_left=True, class_idx=1,
             )
 
         print(f"fps: {(fps_0 + fps_1 + fps_2) / 6}")
@@ -99,7 +101,7 @@ def main(log_level: int = rospy.ERROR) -> None:
         # T-config left
         # bboxes_2 = convert_det_to_real_values(detections=detections_2, rot_90=True) #x_offset=-25, y_offset=-15)
 
-        bboxes = np.array([], dtype=np.float).reshape(0, 9)
+        bboxes = np.array([], dtype=np.float32).reshape(0, 9)
         if bboxes_0.shape[0]:
             bboxes = np.concatenate((bboxes, bboxes_0), axis=0)
         if bboxes_1.shape[0]:

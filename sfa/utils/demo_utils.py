@@ -106,12 +106,7 @@ def download_and_unzip(demo_dataset_dir, download_url):
         zip_ref.extractall(os.path.join(demo_dataset_dir, filename[:-4]))
 
 
-def do_detect(configs, model, bevmap, is_front, peak_thresh: float = None, class_idx: int = None, is_left: bool = False, is_right: bool = False):
-    if not is_front:
-        bevmap = torch.flip(bevmap, [1, 2])
-    if is_left:
-        bevmap = torch.rot90(bevmap, 3, [1, 2])
-
+def do_detect(configs, model, bevmap, peak_thresh: float = None, class_idx: int = None):
     input_bev_maps = bevmap.unsqueeze(0).to(configs.device, non_blocking=True).float()
     t1 = time_synchronized()
     outputs = model(input_bev_maps)
