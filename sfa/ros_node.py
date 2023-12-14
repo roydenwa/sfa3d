@@ -25,7 +25,10 @@ def main(log_level: int = rospy.ERROR) -> None:
         point_cloud = pcl.PointCloud(data[0])
 
         point_cloud = preprocess_point_cloud(point_cloud)
-        
+       
+        # z_offset -> TODO: dbl check should be negative?
+        point_cloud[:, 2] += 0.55
+
         front_bevmap_0 = load_bevmap_front(point_cloud)
         front_bevmap_1 = load_bevmap_front(
             point_cloud, 
@@ -39,6 +42,7 @@ def main(log_level: int = rospy.ERROR) -> None:
                 "maxZ": 1.27,
             }
         )
+        # 9040 config
         back_bevmap = load_bevmap_front(
             point_cloud,
             boundary={
@@ -48,8 +52,22 @@ def main(log_level: int = rospy.ERROR) -> None:
                 "maxY": 25,
                 "minZ": -2.73,
                 "maxZ": 1.27
-            }
+            },
         )
+        # point_cloud[:, 1] += 10 # workaround to get overlap in bag
+        # T-config left
+        # back_bevmap = load_bevmap_front(
+        #     point_cloud,
+        #     boundary={
+        #         "minX": -25,
+        #         "maxX": 25,
+        #         "minY": 0,
+        #         "maxY": 50,
+        #         "minZ": -2.73,
+        #         "maxZ": 1.27
+        #     },
+        #     center_y=False,
+        # )
 
         with torch.no_grad():
             detections_0, bev_map_0, fps_0 = do_detect(
@@ -58,16 +76,28 @@ def main(log_level: int = rospy.ERROR) -> None:
             detections_1, bev_map_1, fps_1 = do_detect(
                 configs, model, front_bevmap_1, is_front=True, peak_thresh=0.4, class_idx=1, # Only vehicles
             )
-            detections_2, bev_map_2, fps_2 = do_detect(
+            detections_2, bev_map, fps_2 = do_detect(
+                # 9040 config
                 configs, model, back_bevmap, is_front=False,
+                # T-config left
+                # configs, model, back_bevmap, is_front=True, peak_thresh=0.2, is_left=True, class_idx=1,
             )
 
         print(f"fps: {(fps_0 + fps_1 + fps_2) / 6}")
 
+        bev_map = (bev_map.permute(1, 2, 0).numpy() * 255).astype(np.uint8)
+        bev_map = cv2.resize(bev_map, (cnf.BEV_WIDTH, cnf.BEV_HEIGHT))
+        debug_img = bev_map
+        debug_img_ros = cv2_to_imgmsg(debug_img)
+        debug_img_pub.publish(debug_img_ros)
+
         # [confidence, cls_id, x, y, z, h, w, l, yaw]
-        bboxes_0 = convert_det_to_real_values(detections=detections_0)
-        bboxes_1 = convert_det_to_real_values(detections=detections_1, x_offset=40)
-        bboxes_2 = convert_det_to_real_values(detections=detections_2, backwards=True, x_offset=-10)
+        bboxes_0 = convert_det_to_real_values(detections=detections_0, z_offset=0.55)
+        bboxes_1 = convert_det_to_real_values(detections=detections_1, x_offset=40, z_offset=0.55)
+        # 9040 config
+        bboxes_2 = convert_det_to_real_values(detections=detections_2, x_offset=-10, z_offset=0.55, backwards=True)
+        # T-config left
+        # bboxes_2 = convert_det_to_real_values(detections=detections_2, rot_90=True) #x_offset=-25, y_offset=-15)
 
         bboxes = np.array([], dtype=np.float).reshape(0, 9)
         if bboxes_0.shape[0]:
@@ -77,7 +107,12 @@ def main(log_level: int = rospy.ERROR) -> None:
         if bboxes_2.shape[0]:
             bboxes = np.concatenate((bboxes, bboxes_2), axis=0)
 
-        bboxes = bev_center_nms(bboxes)
+        # print("before nms")
+        # print(bboxes)
+        bboxes = bev_center_nms(bboxes, thresh_x=1.0, thresh_y=1.0)
+        # print("after nms")
+        # print(bboxes)
+
         rosboxes = bboxes_to_rosmsg(bboxes, data[0].header.stamp)
 
         bbox_pub.publish(rosboxes)
@@ -95,6 +130,12 @@ def main(log_level: int = rospy.ERROR) -> None:
 
     point_cloud_sub = message_filters.Subscriber(
         "/sensor/lidar/box_top/center/vls128_ap/points", PointCloud2
+    )
+
+    debug_img_pub = rospy.Publisher(
+        name="/perception/sfa3d/debug_image",
+        data_class=Image,
+        queue_size=10,
     )
 
     bbox_pub = rospy.Publisher(

@@ -19,14 +19,18 @@ if src_dir not in sys.path:
 import config.kitti_config as cnf
 
 
-def makeBEVMap(PointCloud_, boundary, n_lasers=128): # KITTI LiDAR has 64 lasers
+def makeBEVMap(PointCloud_, boundary, n_lasers=128, center_y: bool = True): # KITTI LiDAR has 64 lasers
     Height = cnf.BEV_HEIGHT + 1
     Width = cnf.BEV_WIDTH + 1
 
     # Discretize Feature Map
     PointCloud = np.copy(PointCloud_)
     PointCloud[:, 0] = np.int_(np.floor(PointCloud[:, 0] / cnf.DISCRETIZATION))
-    PointCloud[:, 1] = np.int_(np.floor(PointCloud[:, 1] / cnf.DISCRETIZATION) + Width / 2)
+    if center_y:
+        PointCloud[:, 1] = np.int_(np.floor(PointCloud[:, 1] / cnf.DISCRETIZATION) + Width / 2)
+    else:
+        PointCloud[:, 1] = np.int_(np.floor(PointCloud[:, 1] / cnf.DISCRETIZATION))
+
 
     # sort-3times
     sorted_indices = np.lexsort((-PointCloud[:, 2], PointCloud[:, 1], PointCloud[:, 0]))

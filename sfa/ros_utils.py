@@ -35,14 +35,14 @@ def read_lidar_bin(path):
     return np.fromfile(path, dtype=np.float32).reshape(-1, 4)
 
 
-def load_bevmap_front(pcd, boundary: dict = None, n_lasers: int = 128):
+def load_bevmap_front(pcd, boundary: dict = None, n_lasers: int = 128, center_y: bool = True):
     if not boundary:
         front_lidar = get_filtered_lidar(pcd, cnf.boundary)
-        front_bevmap = makeBEVMap(front_lidar, cnf.boundary, n_lasers)
+        front_bevmap = makeBEVMap(front_lidar, cnf.boundary, n_lasers, center_y)
     else:
         front_lidar = get_filtered_lidar(pcd, boundary)
         front_lidar[:, 0] = front_lidar[:, 0] - boundary["minX"]
-        front_bevmap = makeBEVMap(front_lidar, boundary, n_lasers)
+        front_bevmap = makeBEVMap(front_lidar, boundary, n_lasers, center_y)
 
     front_bevmap = torch.from_numpy(front_bevmap)
 

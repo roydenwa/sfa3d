@@ -168,7 +168,7 @@ def draw_predictions(img, detections, num_classes=3):
     return img
 
 
-def convert_det_to_real_values(detections, num_classes=3, x_offset: int = 0, backwards: bool = False):
+def convert_det_to_real_values(detections, num_classes=3, x_offset: float = 0., y_offset: float = 0., z_offset: float = 0., backwards: bool = False, rot_90: bool = False):
     kitti_dets = []
     for cls_id in range(num_classes):
         if len(detections[cls_id]) > 0:
@@ -182,9 +182,13 @@ def convert_det_to_real_values(detections, num_classes=3, x_offset: int = 0, bac
                 w = _w / cnf.BEV_WIDTH * cnf.bound_size_y
                 l = _l / cnf.BEV_HEIGHT * cnf.bound_size_x
                 x += x_offset
+                y += y_offset
+                z += z_offset
 
                 if backwards:
                     kitti_dets.append([_score, cls_id, x * -1, y * -1, z, _h, w, l, _yaw * -1])
+                elif rot_90:
+                    kitti_dets.append([_score, cls_id, -y, x, z, _h, w, l, _yaw - np.deg2rad(90)])
                 else:
                     kitti_dets.append([_score, cls_id, x, y, z, _h, w, l, _yaw])
 
