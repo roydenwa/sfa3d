@@ -60,7 +60,7 @@ def load_bevmap(pcd, boundary: dict = None, n_lasers: int = 128, center_y: bool 
     return bevmap
 
 
-def detect(configs, model, bevmaps, peak_thresh: float = None, considered_classes: tuple = (0, 1, 2)):
+def detect(configs, model, bevmaps, peak_thresh: float = None, considered_classes: tuple = ([0, 1, 2], [0], [0, 1, 2])):
     input_bev_maps = bevmaps.to(configs.device, non_blocking=True).float()
     
     t1 = time_synchronized()
@@ -99,7 +99,7 @@ def get_yaw(direction):
     return np.arctan2(direction[:, 0:1], direction[:, 1:2])
 
 
-def post_processing_batched(detections, num_classes=3, down_ratio=4, peak_thresh=0.2, considered_classes: tuple = ((0, 1, 2), (0), (0, 1, 2))):
+def post_processing_batched(detections, num_classes=3, down_ratio=4, peak_thresh=0.2, considered_classes: tuple = ((0, 1, 2), (0, 1, 2), (0, 1, 2))):
     """
     :param detections: [batch_size, K, 10] -> K = topk results (default 50)
     # (scores x 1, xs x 1, ys x 1, z_coor x 1, dim x 3, direction x 2, clses x 1)
