@@ -6,6 +6,7 @@ import typer
 import numpy as np
 import message_filters
 
+from numba import njit
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image, PointCloud2
 from jsk_recognition_msgs.msg import BoundingBox, BoundingBoxArray
@@ -72,25 +73,25 @@ def main(log_level: int = rospy.ERROR) -> None:
         # )
 
         with torch.no_grad():
-            # detections_0, bev_map_0, fps_0 = do_detect(
-            #     configs, model, front_bevmap_0,
-            # )
-            # detections_1, bev_map_1, fps_1 = do_detect(
-            #     configs, model, front_bevmap_1, peak_thresh=0.4, class_idx=1, # Only vehicles
-            # )
-            # detections_2, bev_map, fps_2 = do_detect(
-            #     # 9040 config
-            #     configs, model, back_bevmap,
-            #     # T-config left
-            #     # configs, model, back_bevmap, peak_thresh=0.2, is_left=True, class_idx=1,
-            # )
-            bevmaps = torch.concat((front_bevmap_0[None, ...], front_bevmap_1[None, ...], back_bevmap[None, ...]), dim=0)
-            detections, _, fps = detect(configs, model, bevmaps)
+            detections_0, bev_map_0, fps_0 = do_detect(
+                configs, model, front_bevmap_0,
+            )
+            detections_1, bev_map_1, fps_1 = do_detect(
+                configs, model, front_bevmap_1, peak_thresh=0.4, class_idx=1, # Only vehicles
+            )
+            detections_2, bev_map, fps_2 = do_detect(
+                # 9040 config
+                configs, model, back_bevmap,
+                # T-config left
+                # configs, model, back_bevmap, peak_thresh=0.2, is_left=True, class_idx=1,
+            )
+            # bevmaps = torch.concat((front_bevmap_0[None, ...], front_bevmap_1[None, ...], back_bevmap[None, ...]), dim=0)
+            # detections, _, fps = detect(configs, model, bevmaps)
         
-        detections_0, detections_1, detections_2 = detections[0], detections[1], detections[2]
-        print(f"fps: {fps}")
+        # detections_0, detections_1, detections_2 = detections[0], detections[1], detections[2]
+        # print(f"fps: {fps}")
 
-        # print(f"fps: {(fps_0 + fps_1 + fps_2) / 6}")
+        print(f"fps: {(fps_0 + fps_1 + fps_2) / 6}")
         bev_map = back_bevmap
 
         bev_map = (bev_map.permute(1, 2, 0).numpy() * 255).astype(np.uint8)
@@ -232,19 +233,19 @@ def bboxes_to_rosmsg(bboxes: list, timestamp) -> BoundingBoxArray:
 
     return rosboxes
 
-
+@njit
 def bev_center_nms(bboxes_in: np.ndarray, thresh_x: float = 1.0, thresh_y: float = 1.0) -> np.ndarray:
-    # TODO: JIT (numba)
-    bboxes_out = [] # [confidence, cls_id, x, y, z, h, w, l, yaw]  
-    bboxes_in = bboxes_in[np.lexsort((bboxes_in[:, 0], bboxes_in[:, 2], bboxes_in[:, 3]))[::-1]] # Sort in descending order
-    prev_bbox = np.zeros(9, dtype=np.float32)
+    bboxes_out = [] # [confidence, cls_id, x, y, z, h, w, l, yaw]
 
-    for bbox in bboxes_in:
-        if not (np.abs(bbox[2] - prev_bbox[2]) < thresh_x and np.abs(bbox[3] - prev_bbox[3]) < thresh_y):
-            bboxes_out.append(bbox)
-        prev_bbox = bbox
-
-    return np.array(bboxes_out)
+    for idx_a, box_a in enumerate(bboxes_in):
+        keep = True
+        for idx_b, box_b in enumerate(bboxes_in):
+            if idx_a != idx_b and box_a[0] < box_b[0] and np.abs(box_a[2] - box_b[2]) < thresh_x and np.abs(box_a[3] - box_b[3]) < thresh_y:
+                keep = False
+        if keep:
+            bboxes_out.append(box_a)
+    
+    return bboxes_out
     
 
 if __name__ == "__main__":
