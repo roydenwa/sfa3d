@@ -27,7 +27,7 @@ def main(log_level: int = rospy.ERROR) -> None:
         point_cloud = preprocess_point_cloud(point_cloud)
        
         # z_offset -> TODO: dbl check should be negative?
-        point_cloud[:, 2] += 0.55
+        # point_cloud[:, 2] += 0.55 # prob. times 1.1/ 1.2 if < 0.0 to stretch area between sensor and ground level
 
         front_bevmap_0 = load_bevmap(point_cloud)
         front_bevmap_1 = load_bevmap(
