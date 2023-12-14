@@ -12,7 +12,7 @@ from jsk_recognition_msgs.msg import BoundingBox, BoundingBoxArray
 from tf.transformations import quaternion_from_euler
 
 import config.kitti_config as cnf
-from ros_utils import load_bevmap, min_max_scaling
+from ros_utils import load_bevmap, min_max_scaling, detect
 
 from utils.evaluation_utils import draw_predictions, convert_det_to_real_values
 from models.model_utils import create_model
@@ -72,20 +72,26 @@ def main(log_level: int = rospy.ERROR) -> None:
         # )
 
         with torch.no_grad():
-            detections_0, bev_map_0, fps_0 = do_detect(
-                configs, model, front_bevmap_0,
-            )
-            detections_1, bev_map_1, fps_1 = do_detect(
-                configs, model, front_bevmap_1, peak_thresh=0.4, class_idx=1, # Only vehicles
-            )
-            detections_2, bev_map, fps_2 = do_detect(
-                # 9040 config
-                configs, model, back_bevmap,
-                # T-config left
-                # configs, model, back_bevmap, peak_thresh=0.2, is_left=True, class_idx=1,
-            )
+            # detections_0, bev_map_0, fps_0 = do_detect(
+            #     configs, model, front_bevmap_0,
+            # )
+            # detections_1, bev_map_1, fps_1 = do_detect(
+            #     configs, model, front_bevmap_1, peak_thresh=0.4, class_idx=1, # Only vehicles
+            # )
+            # detections_2, bev_map, fps_2 = do_detect(
+            #     # 9040 config
+            #     configs, model, back_bevmap,
+            #     # T-config left
+            #     # configs, model, back_bevmap, peak_thresh=0.2, is_left=True, class_idx=1,
+            # )
+            bevmaps = torch.concat((front_bevmap_0[None, ...], front_bevmap_1[None, ...], back_bevmap[None, ...]), dim=0)
+            detections, _, fps = detect(configs, model, bevmaps)
+        
+        detections_0, detections_1, detections_2 = detections[0], detections[1], detections[2]
+        print(f"fps: {fps}")
 
-        print(f"fps: {(fps_0 + fps_1 + fps_2) / 6}")
+        # print(f"fps: {(fps_0 + fps_1 + fps_2) / 6}")
+        bev_map = back_bevmap
 
         bev_map = (bev_map.permute(1, 2, 0).numpy() * 255).astype(np.uint8)
         bev_map = cv2.resize(bev_map, (cnf.BEV_WIDTH, cnf.BEV_HEIGHT))
