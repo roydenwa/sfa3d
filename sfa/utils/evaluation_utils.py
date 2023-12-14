@@ -119,7 +119,7 @@ def get_yaw(direction):
     return np.arctan2(direction[:, 0:1], direction[:, 1:2])
 
 
-def post_processing(detections, num_classes=3, down_ratio=4, peak_thresh=0.2, class_idx: int = None):
+def post_processing(detections, num_classes=3, down_ratio=4, peak_thresh=0.2, considered_classes: tuple = (0, 1, 2)):
     """
     :param detections: [batch_size, K, 10]
     # (scores x 1, xs x 1, ys x 1, z_coor x 1, dim x 3, direction x 2, clses x 1)
@@ -144,12 +144,14 @@ def post_processing(detections, num_classes=3, down_ratio=4, peak_thresh=0.2, cl
                 detections[i, inds, 5:6] / cnf.bound_size_y * cnf.BEV_WIDTH,
                 detections[i, inds, 6:7] / cnf.bound_size_x * cnf.BEV_HEIGHT,
                 get_yaw(detections[i, inds, 7:9]).astype(np.float32)], axis=1)
+
             # Filter by peak_thresh
             if len(top_preds[j]) > 0:
                 keep_inds = (top_preds[j][:, 0] > peak_thresh)
                 top_preds[j] = top_preds[j][keep_inds]
-            # Workaround for vehicle-only detection
-            if class_idx and j != class_idx:
+
+            # Filter considered classes
+            if j not in considered_classes:
                 top_preds[j] = []
         
         ret.append(top_preds)
