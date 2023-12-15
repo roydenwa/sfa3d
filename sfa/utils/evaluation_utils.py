@@ -188,7 +188,7 @@ def convert_det_to_real_values(detections, num_classes=3, x_offset: float = 0., 
                 z += z_offset
 
                 if backwards:
-                    kitti_dets.append([_score, cls_id, x * -1, y * -1, z, _h, w, l, _yaw * -1])
+                    kitti_dets.append([_score, cls_id, x * -1, y * -1, z, _h, w, l, _yaw + np.deg2rad(180)])
                 elif rot_90:
                     kitti_dets.append([_score, cls_id, -y, x, z, _h, w, l, _yaw - np.deg2rad(90)])
                 else:
