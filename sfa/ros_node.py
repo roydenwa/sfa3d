@@ -62,15 +62,16 @@ def main(log_level: int = rospy.ERROR) -> None:
                 # 9040 config
                 configs, model, back_bevmap, class_idx=1,
             )
-           
-        print(f"fps: {(fps_0 + fps_1 + fps_2) / 6}")
-        bev_map = back_bevmap
 
-        bev_map = (bev_map.permute(1, 2, 0).numpy() * 255).astype(np.uint8)
-        bev_map = cv2.resize(bev_map, (cnf.BEV_WIDTH, cnf.BEV_HEIGHT))
-        debug_img = bev_map
-        debug_img_ros = cv2_to_imgmsg(debug_img)
-        debug_img_pub.publish(debug_img_ros)
+        if log_level == rospy.DEBUG:   
+            print(f"fps: {(fps_0 + fps_1 + fps_2) / 6}")
+            bev_map = back_bevmap
+            bev_map = (bev_map.permute(1, 2, 0).numpy() * 255).astype(np.uint8)
+            bev_map = cv2.resize(bev_map, (cnf.BEV_WIDTH, cnf.BEV_HEIGHT))
+            
+            debug_img = bev_map
+            debug_img_ros = cv2_to_imgmsg(debug_img)
+            debug_img_pub.publish(debug_img_ros)
 
         # [confidence, cls_id, x, y, z, h, w, l, yaw]
         bboxes_0 = convert_det_to_real_values(detections=detections_0, z_offset=0.55)
@@ -106,11 +107,12 @@ def main(log_level: int = rospy.ERROR) -> None:
         "/sensor/lidar/box_top/center/vls128_ap/points", PointCloud2
     )
 
-    debug_img_pub = rospy.Publisher(
-        name="/perception/sfa3d/debug_image",
-        data_class=Image,
-        queue_size=10,
-    )
+    if log_level == rospy.DEBUG:
+        debug_img_pub = rospy.Publisher(
+            name="/perception/sfa3d/debug_image",
+            data_class=Image,
+            queue_size=10,
+        )
 
     bbox_pub = rospy.Publisher(
         name="/perception/sfa3d/bboxes",
