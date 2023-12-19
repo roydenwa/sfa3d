@@ -60,7 +60,7 @@ def main(log_level: int = rospy.ERROR) -> None:
             )
             detections_2, bev_map, fps_2 = do_detect(
                 # 9040 config
-                configs, model, back_bevmap, class_idx=1,
+                configs, model, back_bevmap, peak_thresh=0.2, class_idx=1,
             )
 
         if log_level == rospy.DEBUG:   
