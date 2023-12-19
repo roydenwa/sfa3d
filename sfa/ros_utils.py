@@ -34,6 +34,11 @@ from utils.misc import time_synchronized
 from utils.evaluation_utils import decode
 from utils.torch_utils import _sigmoid
 
+from numba import njit
+from sensor_msgs.msg import Image, PointCloud2
+from tf.transformations import quaternion_from_euler
+from jsk_recognition_msgs.msg import BoundingBox, BoundingBoxArray
+
 
 def read_lidar_bin(path):
     return np.fromfile(path, dtype=np.float32).reshape(-1, 4)
@@ -136,3 +141,85 @@ def post_processing_batched(detections, num_classes=3, down_ratio=4, peak_thresh
         ret.append(top_preds)
 
     return ret
+
+def preprocess_point_cloud(pc: pcl.PointCloud) -> np.ndarray:
+    pcd_np = pc.to_ndarray()
+    x = pcd_np["x"]
+    x = np.nan_to_num(x, nan=0.0)
+    y = pcd_np["y"]
+    y = np.nan_to_num(y, nan=0.0)
+    z = pcd_np["z"]
+    z = np.nan_to_num(z, nan=0.0)
+    i = pcd_np["intensity"]
+    i = np.nan_to_num(i, nan=0.0)
+    i /= 255.0
+    points_32 = np.transpose(np.vstack((x, y, z, i)))
+
+    return points_32
+
+
+def cv2_to_imgmsg(cv_image: np.ndarray) -> Image:
+    img_msg = Image()
+    img_msg.height = cv_image.shape[0]
+    img_msg.width = cv_image.shape[1]
+
+    if cv_image.shape[-1] == 3:
+        img_msg.encoding = "bgr8"
+    else:
+        img_msg.encoding = "mono8"
+
+    img_msg.is_bigendian = 0
+    img_msg.data = cv_image.tostring()
+    img_msg.step = len(img_msg.data) // img_msg.height
+
+    return img_msg
+
+
+def bboxes_to_rosmsg(bboxes: list, timestamp) -> BoundingBoxArray:
+    # TODO: JIT (numba)
+    rosboxes = BoundingBoxArray()
+
+    for bbox in bboxes:
+        confidence, cls_id, x, y, z, h, w, l, yaw = bbox
+
+        rosbox = BoundingBox()
+        rosbox.header.stamp = timestamp
+        rosbox.header.frame_id = "sensor/lidar/box_top/center/vls128_ap"
+
+        # roll, pitch and yaw
+        q = quaternion_from_euler(0, 0, yaw)
+
+        rosbox.pose.orientation.x = q[0]
+        rosbox.pose.orientation.y = q[1]
+        rosbox.pose.orientation.z = q[2]
+        rosbox.pose.orientation.w = q[3]
+        rosbox.pose.position.x = x
+        rosbox.pose.position.y = y
+        rosbox.pose.position.z = z
+        rosbox.dimensions.x = l
+        rosbox.dimensions.y = w
+        rosbox.dimensions.z = h
+
+        rosbox.label = np.uint(cls_id)  # TODO: convert from KITTI to Joy classes
+        rosbox.value = confidence
+
+        rosboxes.boxes.append(rosbox)
+
+    rosboxes.header.frame_id = "sensor/lidar/box_top/center/vls128_ap"
+    rosboxes.header.stamp = timestamp
+
+    return rosboxes
+
+@njit
+def bev_center_nms(bboxes_in: np.ndarray, thresh_x: float = 1.0, thresh_y: float = 1.0) -> np.ndarray:
+    bboxes_out = [] # [confidence, cls_id, x, y, z, h, w, l, yaw]
+
+    for idx_a, box_a in enumerate(bboxes_in):
+        keep = True
+        for idx_b, box_b in enumerate(bboxes_in):
+            if idx_a != idx_b and box_a[0] < box_b[0] and np.abs(box_a[2] - box_b[2]) < thresh_x and np.abs(box_a[3] - box_b[3]) < thresh_y:
+                keep = False
+        if keep:
+            bboxes_out.append(box_a)
+    
+    return bboxes_out
