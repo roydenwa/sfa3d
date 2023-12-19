@@ -35,6 +35,8 @@ from utils.evaluation_utils import decode
 from utils.torch_utils import _sigmoid
 
 import pcl
+import signal
+import rosgraph
 from numba import njit
 from sensor_msgs.msg import Image, PointCloud2
 from tf.transformations import quaternion_from_euler
@@ -224,3 +226,8 @@ def bev_center_nms(bboxes_in: np.ndarray, thresh_x: float = 1.0, thresh_y: float
             bboxes_out.append(box_a)
     
     return bboxes_out
+
+
+def shutdown_callback(event):
+        if not rosgraph.is_master_online():
+            os.kill(os.getpid(), signal.SIGTERM)

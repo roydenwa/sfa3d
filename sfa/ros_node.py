@@ -11,7 +11,7 @@ from sensor_msgs.msg import Image, PointCloud2
 from jsk_recognition_msgs.msg import BoundingBox, BoundingBoxArray
 
 import config.kitti_config as cnf
-from ros_utils import load_bevmap, preprocess_point_cloud, cv2_to_imgmsg, bev_center_nms, bboxes_to_rosmsg
+from ros_utils import load_bevmap, preprocess_point_cloud, cv2_to_imgmsg, bev_center_nms, bboxes_to_rosmsg, shutdown_callback
 
 from utils.evaluation_utils import draw_predictions, convert_det_to_real_values
 from models.model_utils import create_model
@@ -129,6 +129,7 @@ def main(log_level: int = rospy.ERROR) -> None:
     )
     ts.registerCallback(perception_callback)
 
+    rospy.Timer(rospy.Duration(secs=10), callback=shutdown_callback)
     rospy.spin()
 
 
