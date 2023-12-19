@@ -24,12 +24,8 @@ from utils.visualization_utils import merge_rgb_to_bev
 def main(log_level: int = rospy.ERROR) -> None:
     def perception_callback(*data):
         point_cloud = pcl.PointCloud(data[0])
-
         point_cloud = preprocess_point_cloud(point_cloud)
        
-        # z_offset -> TODO: dbl check should be negative?
-        # point_cloud[:, 2] += 0.55 # prob. times 1.1/ 1.2 if < 0.0 to stretch area between sensor and ground level
-
         front_bevmap_0 = load_bevmap(point_cloud)
         front_bevmap_1 = load_bevmap(
             point_cloud, 
@@ -56,22 +52,7 @@ def main(log_level: int = rospy.ERROR) -> None:
                 "maxZ": 1.27
             },
         )
-        # point_cloud[:, 1] += 10 # workaround to get overlap in bag
-        # T-config left
-        # back_bevmap = load_bevmap(
-        #     point_cloud,
-        #     boundary={
-        #         "minX": -25,
-        #         "maxX": 25,
-        #         "minY": 0,
-        #         "maxY": 50,
-        #         "minZ": -2.73,
-        #         "maxZ": 1.27
-        #     },
-        #     center_y=False,
-        #     is_left=True,
-        # )
-
+      
         with torch.no_grad():
             detections_0, bev_map_0, fps_0 = do_detect(
                 configs, model, front_bevmap_0,
@@ -82,15 +63,8 @@ def main(log_level: int = rospy.ERROR) -> None:
             detections_2, bev_map, fps_2 = do_detect(
                 # 9040 config
                 configs, model, back_bevmap,
-                # T-config left
-                # configs, model, back_bevmap, peak_thresh=0.2, is_left=True, class_idx=1,
             )
-            # bevmaps = torch.concat((front_bevmap_0[None, ...], front_bevmap_1[None, ...], back_bevmap[None, ...]), dim=0)
-            # detections, _, fps = detect(configs, model, bevmaps)
-        
-        # detections_0, detections_1, detections_2 = detections[0], detections[1], detections[2]
-        # print(f"fps: {fps}")
-
+           
         print(f"fps: {(fps_0 + fps_1 + fps_2) / 6}")
         bev_map = back_bevmap
 
@@ -105,8 +79,6 @@ def main(log_level: int = rospy.ERROR) -> None:
         bboxes_1 = convert_det_to_real_values(detections=detections_1, x_offset=40, z_offset=0.55)
         # 9040 config
         bboxes_2 = convert_det_to_real_values(detections=detections_2, x_offset=-10, z_offset=0.55, backwards=True)
-        # T-config left
-        # bboxes_2 = convert_det_to_real_values(detections=detections_2, rot_90=True) #x_offset=-25, y_offset=-15)
 
         bboxes = np.array([], dtype=np.float32).reshape(0, 9)
         if bboxes_0.shape[0]:
