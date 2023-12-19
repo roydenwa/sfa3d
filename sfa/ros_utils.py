@@ -34,6 +34,7 @@ from utils.misc import time_synchronized
 from utils.evaluation_utils import decode
 from utils.torch_utils import _sigmoid
 
+import pcl
 from numba import njit
 from sensor_msgs.msg import Image, PointCloud2
 from tf.transformations import quaternion_from_euler
