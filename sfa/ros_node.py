@@ -60,7 +60,7 @@ def main(log_level: int = rospy.ERROR) -> None:
             )
             detections_2, bev_map, fps_2 = do_detect(
                 # 9040 config
-                configs, model, back_bevmap,
+                configs, model, back_bevmap, class_idx=1,
             )
            
         print(f"fps: {(fps_0 + fps_1 + fps_2) / 6}")
