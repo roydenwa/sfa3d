@@ -116,12 +116,7 @@ def main(log_level: int = rospy.ERROR) -> None:
         if bboxes_2.shape[0]:
             bboxes = np.concatenate((bboxes, bboxes_2), axis=0)
 
-        # print("before nms")
-        # print(bboxes)
         bboxes = bev_center_nms(bboxes, thresh_x=1.0, thresh_y=1.0)
-        # print("after nms")
-        # print(bboxes)
-
         rosboxes = bboxes_to_rosmsg(bboxes, data[0].header.stamp)
 
         bbox_pub.publish(rosboxes)
