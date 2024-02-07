@@ -53,10 +53,10 @@ def main(log_level: int = rospy.ERROR) -> None:
       
         with torch.no_grad():
             detections_0, bev_map_0, fps_0 = do_detect(
-                configs, model, front_bevmap_0,
+                configs, model, front_bevmap_0, peak_thresh=0.2, class_idx=1, # Only vehicles
             )
             detections_1, bev_map_1, fps_1 = do_detect(
-                configs, model, front_bevmap_1, peak_thresh=0.4, class_idx=1, # Only vehicles
+                configs, model, front_bevmap_1, peak_thresh=0.4, class_idx=1,
             )
             detections_2, bev_map, fps_2 = do_detect(
                 # 9040 config
