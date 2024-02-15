@@ -42,8 +42,8 @@ def main(log_level: int = rospy.ERROR) -> None:
             point_cloud,
             is_back=True,
             boundary={
-                "minX": -35,
-                "maxX": 15,
+                "minX": -40,
+                "maxX": 10,
                 "minY": -25,
                 "maxY": 25,
                 "minZ": -2.73,
@@ -77,7 +77,7 @@ def main(log_level: int = rospy.ERROR) -> None:
         bboxes_0 = convert_det_to_real_values(detections=detections_0, z_offset=0.55)
         bboxes_1 = convert_det_to_real_values(detections=detections_1, x_offset=40, z_offset=0.55)
         # 9040 config
-        bboxes_2 = convert_det_to_real_values(detections=detections_2, x_offset=-15, z_offset=0.55, backwards=True)
+        bboxes_2 = convert_det_to_real_values(detections=detections_2, x_offset=-10, z_offset=0.55, backwards=True)
 
         bboxes = np.array([], dtype=np.float32).reshape(0, 9)
         if bboxes_0.shape[0]:
