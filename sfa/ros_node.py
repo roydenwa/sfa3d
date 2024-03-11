@@ -4,22 +4,19 @@ import torch
 import rospy
 import typer
 import numpy as np
-import message_filters
 
 import concurrent.futures as cf
 from timeit import default_timer as timer
 
-from cv_bridge import CvBridge
-from sensor_msgs.msg import Image, PointCloud2
-from jsk_recognition_msgs.msg import BoundingBox, BoundingBoxArray
+from sensor_msgs.msg import PointCloud2
+from jsk_recognition_msgs.msg import BoundingBoxArray
 
 import config.kitti_config as cnf
-from ros_utils import load_bevmap, preprocess_point_cloud, cv2_to_imgmsg, bev_center_nms, bboxes_to_rosmsg, shutdown_callback, ego_nms
+from ros_utils import load_bevmap, preprocess_point_cloud, bev_center_nms, bboxes_to_rosmsg, shutdown_callback, ego_nms
 
-from utils.evaluation_utils import draw_predictions, convert_det_to_real_values
+from utils.evaluation_utils import convert_det_to_real_values
 from models.model_utils import create_model
 from utils.demo_utils import parse_demo_configs, do_detect
-from utils.visualization_utils import merge_rgb_to_bev
 
 
 def main(log_level: int = rospy.ERROR) -> None:
