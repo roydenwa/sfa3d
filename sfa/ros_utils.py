@@ -291,9 +291,7 @@ def bev_center_nms(
 
 
 def shutdown_callback(event):
-    # opt use rosnode.get_node_names() if rviz not in list kill
     if not "rviz" in "".join(rosnode.get_node_names()):
-        # if not rosgraph.is_master_online():
         os.kill(os.getpid(), signal.SIGTERM)
 
 
@@ -306,7 +304,5 @@ def ego_nms(
     for bbox in bboxes_in:
         if np.abs(bbox[2]) > x_thresh or np.abs(bbox[3]) > y_thresh:
             bboxes_out.append(bbox)
-
-    # bboxes_out.append(np.array([0.7, 1.0, 0.0, 0.0, 0.0, 2.0, 2.0, 2.0, 0.0]))
 
     return bboxes_out
