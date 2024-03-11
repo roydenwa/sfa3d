@@ -12,7 +12,14 @@ from sensor_msgs.msg import PointCloud2
 from jsk_recognition_msgs.msg import BoundingBoxArray
 
 import config.kitti_config as cnf
-from ros_utils import load_bevmap, preprocess_point_cloud, bev_center_nms, bboxes_to_rosmsg, shutdown_callback, ego_nms
+from ros_utils import (
+    load_bevmap,
+    preprocess_point_cloud,
+    bev_center_nms,
+    bboxes_to_rosmsg,
+    shutdown_callback,
+    ego_nms,
+)
 
 from utils.evaluation_utils import convert_det_to_real_values
 from models.model_utils import create_model
@@ -27,41 +34,60 @@ def main(log_level: int = rospy.ERROR) -> None:
 
         with cf.ThreadPoolExecutor(3) as pool:
             future_0 = pool.submit(load_bevmap, point_cloud)
-            future_1 = pool.submit(load_bevmap, point_cloud, n_lasers=64, 
-            boundary={
-                "minX": 40,
-                "maxX": 90,
-                "minY": -25,
-                "maxY": 25,
-                "minZ": -2.73,
-                "maxZ": 1.27,
-            })
-            future_2 = pool.submit(load_bevmap, point_cloud, is_back=True,
-            boundary={
-                "minX": -40,
-                "maxX": 10,
-                "minY": -25,
-                "maxY": 25,
-                "minZ": -2.73,
-                "maxZ": 1.27
-            })
+            future_1 = pool.submit(
+                load_bevmap,
+                point_cloud,
+                n_lasers=64,
+                boundary={
+                    "minX": 40,
+                    "maxX": 90,
+                    "minY": -25,
+                    "maxY": 25,
+                    "minZ": -2.73,
+                    "maxZ": 1.27,
+                },
+            )
+            future_2 = pool.submit(
+                load_bevmap,
+                point_cloud,
+                is_back=True,
+                boundary={
+                    "minX": -40,
+                    "maxX": 10,
+                    "minY": -25,
+                    "maxY": 25,
+                    "minZ": -2.73,
+                    "maxZ": 1.27,
+                },
+            )
 
             front_bevmap_0 = future_0.result()
             front_bevmap_1 = future_1.result()
             back_bevmap = future_2.result()
-            
+
         preprocessing_end = timer()
-      
+
         with torch.no_grad():
             detections_0, *_ = do_detect(
-                configs, model, front_bevmap_0, peak_thresh=0.2, # Only vehicles
+                configs,
+                model,
+                front_bevmap_0,
+                peak_thresh=0.2,  # Only vehicles
             )
             detections_1, *_ = do_detect(
-                configs, model, front_bevmap_1, peak_thresh=0.4, class_idx=1,
+                configs,
+                model,
+                front_bevmap_1,
+                peak_thresh=0.4,
+                class_idx=1,
             )
             detections_2, *_ = do_detect(
                 # 9035 config
-                configs, model, back_bevmap, peak_thresh=0.2, class_idx=1,
+                configs,
+                model,
+                back_bevmap,
+                peak_thresh=0.2,
+                class_idx=1,
             )
 
         inference_end = timer()
@@ -73,7 +99,9 @@ def main(log_level: int = rospy.ERROR) -> None:
         bboxes_1 = convert_det_to_real_values(detections=detections_1, x_offset=40)
         # 9040 config
         # bboxes_2 = convert_det_to_real_values(detections=detections_2, x_offset=-10, z_offset=0.55, backwards=True)
-        bboxes_2 = convert_det_to_real_values(detections=detections_2, x_offset=-10, backwards=True)
+        bboxes_2 = convert_det_to_real_values(
+            detections=detections_2, x_offset=-10, backwards=True
+        )
 
         bboxes = np.array([], dtype=np.float32).reshape(0, 9)
         if bboxes_0.shape[0]:
@@ -104,17 +132,22 @@ def main(log_level: int = rospy.ERROR) -> None:
 
     model = create_model(configs)
     # model.load_state_dict(torch.load(configs.pretrained_path, map_location="cpu"))
-    model.load_state_dict(torch.load("../checkpoints/fpn_resnet_18/Model_fpn_resnet_18_epoch_8.pth", map_location="cpu"))
+    model.load_state_dict(
+        torch.load(
+            "../checkpoints/fpn_resnet_18/Model_fpn_resnet_18_epoch_8.pth",
+            map_location="cpu",
+        )
+    )
     model = model.to(configs.device)
 
     rospy.init_node("sfa3d_detector", log_level=log_level)
 
     point_cloud_sub = rospy.Subscriber(
-        name="/sensor/lidar/box_top/center/vls128_ap/points", 
+        name="/sensor/lidar/box_top/center/vls128_ap/points",
         data_class=PointCloud2,
         callback=perception_callback,
     )
-    
+
     bbox_pub = rospy.Publisher(
         name="/perception/sfa3d/bboxes",
         data_class=BoundingBoxArray,
