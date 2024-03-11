@@ -26,8 +26,8 @@ from models.model_utils import create_model
 from utils.demo_utils import parse_demo_configs, do_detect as detect
 
 
-# def main(log_level: int = rospy.ERROR) -> None:
-def main(log_level: int = rospy.DEBUG) -> None:
+def main(log_level: int = rospy.ERROR) -> None:
+# def main(log_level: int = rospy.DEBUG) -> None:
     def perception_callback(*data):
         start_time = timer()
         point_cloud = pcl.PointCloud(data[0])
