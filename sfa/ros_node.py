@@ -23,7 +23,7 @@ from ros_utils import (
 
 from utils.evaluation_utils import convert_det_to_real_values
 from models.model_utils import create_model
-from utils.demo_utils import parse_demo_configs, do_detect
+from utils.demo_utils import parse_demo_configs, do_detect as detect
 
 
 def main(log_level: int = rospy.ERROR) -> None:
@@ -68,20 +68,20 @@ def main(log_level: int = rospy.ERROR) -> None:
         preprocessing_end = timer()
 
         with torch.no_grad():
-            detections_0, *_ = do_detect(
+            detections_0, *_ = detect(
                 configs,
                 model,
                 front_bevmap_0,
-                peak_thresh=0.2,  # Only vehicles
+                peak_thresh=0.2,
             )
-            detections_1, *_ = do_detect(
+            detections_1, *_ = detect(
                 configs,
                 model,
                 front_bevmap_1,
                 peak_thresh=0.4,
-                class_idx=1,
+                class_idx=1, # Only vehicles
             )
-            detections_2, *_ = do_detect(
+            detections_2, *_ = detect(
                 # 9035 config
                 configs,
                 model,
