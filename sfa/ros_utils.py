@@ -37,6 +37,7 @@ from utils.torch_utils import _sigmoid
 import pcl
 import signal
 import rosgraph
+import rosnode
 from numba import njit
 from sensor_msgs.msg import Image, PointCloud2
 from tf.transformations import quaternion_from_euler
@@ -214,13 +215,13 @@ def bboxes_to_rosmsg(bboxes: list, timestamp) -> BoundingBoxArray:
     return rosboxes
 
 @njit
-def bev_center_nms(bboxes_in: np.ndarray, thresh_x: float = 1.0, thresh_y: float = 1.0) -> np.ndarray:
+def bev_center_nms(bboxes_in: np.ndarray, thresh_x: float = 1.0, thresh_y: float = 1.0, class_id: float = 1.0) -> list:
     bboxes_out = [] # [confidence, cls_id, x, y, z, h, w, l, yaw]
 
     for idx_a, box_a in enumerate(bboxes_in):
         keep = True
         for idx_b, box_b in enumerate(bboxes_in):
-            if idx_a != idx_b and box_a[0] < box_b[0] and np.abs(box_a[2] - box_b[2]) < thresh_x and np.abs(box_a[3] - box_b[3]) < thresh_y:
+            if idx_a != idx_b and box_a[1] == class_id and box_b[1] == class_id and box_a[0] < box_b[0] and np.abs(box_a[2] - box_b[2]) < thresh_x and np.abs(box_a[3] - box_b[3]) < thresh_y:
                 keep = False
         if keep:
             bboxes_out.append(box_a)
@@ -229,5 +230,20 @@ def bev_center_nms(bboxes_in: np.ndarray, thresh_x: float = 1.0, thresh_y: float
 
 
 def shutdown_callback(event):
-        if not rosgraph.is_master_online():
-            os.kill(os.getpid(), signal.SIGTERM)
+    # opt use rosnode.get_node_names() if rviz not in list kill
+    if not "rviz" in "".join(rosnode.get_node_names()):
+    # if not rosgraph.is_master_online():
+        os.kill(os.getpid(), signal.SIGTERM)
+
+
+# @njit
+def ego_nms(bboxes_in: np.ndarray, x_thresh: float = 1.5, y_thresh: float = 1.5) -> list:
+    bboxes_out = []
+
+    for bbox in bboxes_in:
+        if np.abs(bbox[2]) > x_thresh or np.abs(bbox[3]) > y_thresh:
+            bboxes_out.append(bbox)
+
+    # bboxes_out.append(np.array([0.7, 1.0, 0.0, 0.0, 0.0, 2.0, 2.0, 2.0, 0.0]))
+
+    return bboxes_out
