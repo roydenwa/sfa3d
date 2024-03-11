@@ -31,6 +31,8 @@ def main(log_level: int = rospy.ERROR) -> None:
     def perception_callback(*data):
         start_time = timer()
         point_cloud = pcl.PointCloud(data[0])
+        serialization_end = timer()
+
         point_cloud = preprocess_point_cloud(point_cloud)
 
         with cf.ThreadPoolExecutor(3) as pool:
@@ -121,7 +123,8 @@ def main(log_level: int = rospy.ERROR) -> None:
         end_publish = timer()
 
         if log_level == rospy.DEBUG:
-            rospy.logdebug(f"Pre-processing latency: {preprocessing_end - start_time} s")
+            rospy.logdebug(f"Serialization latency: {serialization_end - start_time} s")
+            rospy.logdebug(f"Pre-processing latency: {preprocessing_end - serialization_end} s")
             rospy.logdebug(f"Inference latency: {inference_end - preprocessing_end} s")
             rospy.logdebug(f"Post-processing latency: {end_time - inference_end} s")
             rospy.logdebug(f"Total latency: {end_time - start_time} s")
