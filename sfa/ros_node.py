@@ -6,12 +6,15 @@ import typer
 import numpy as np
 import message_filters
 
+import concurrent.futures as cf
+from timeit import default_timer as timer
+
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image, PointCloud2
 from jsk_recognition_msgs.msg import BoundingBox, BoundingBoxArray
 
 import config.kitti_config as cnf
-from ros_utils import load_bevmap, preprocess_point_cloud, cv2_to_imgmsg, bev_center_nms, bboxes_to_rosmsg, shutdown_callback
+from ros_utils import load_bevmap, preprocess_point_cloud, cv2_to_imgmsg, bev_center_nms, bboxes_to_rosmsg, shutdown_callback, ego_nms
 
 from utils.evaluation_utils import draw_predictions, convert_det_to_real_values
 from models.model_utils import create_model
@@ -21,13 +24,13 @@ from utils.visualization_utils import merge_rgb_to_bev
 
 def main(log_level: int = rospy.ERROR) -> None:
     def perception_callback(*data):
+        # start_time = timer()
         point_cloud = pcl.PointCloud(data[0])
         point_cloud = preprocess_point_cloud(point_cloud)
-       
-        front_bevmap_0 = load_bevmap(point_cloud)
-        front_bevmap_1 = load_bevmap(
-            point_cloud, 
-            n_lasers=64, 
+
+        with cf.ThreadPoolExecutor(3) as pool:
+            future_0 = pool.submit(load_bevmap, point_cloud)
+            future_1 = pool.submit(load_bevmap, point_cloud, n_lasers=64, 
             boundary={
                 "minX": 40,
                 "maxX": 90,
@@ -35,12 +38,8 @@ def main(log_level: int = rospy.ERROR) -> None:
                 "maxY": 25,
                 "minZ": -2.73,
                 "maxZ": 1.27,
-            }
-        )
-        # 9040 config
-        back_bevmap = load_bevmap(
-            point_cloud,
-            is_back=True,
+            })
+            future_2 = pool.submit(load_bevmap, point_cloud, is_back=True,
             boundary={
                 "minX": -40,
                 "maxX": 10,
@@ -48,12 +47,17 @@ def main(log_level: int = rospy.ERROR) -> None:
                 "maxY": 25,
                 "minZ": -2.73,
                 "maxZ": 1.27
-            },
-        )
+            })
+
+            front_bevmap_0 = future_0.result()
+            front_bevmap_1 = future_1.result()
+            back_bevmap = future_2.result()
+            
+        # preprocessing_end = timer()
       
         with torch.no_grad():
             detections_0, bev_map_0, fps_0 = do_detect(
-                configs, model, front_bevmap_0, peak_thresh=0.2, class_idx=1, # Only vehicles
+                configs, model, front_bevmap_0, peak_thresh=0.2, # Only vehicles
             )
             detections_1, bev_map_1, fps_1 = do_detect(
                 configs, model, front_bevmap_1, peak_thresh=0.4, class_idx=1,
@@ -62,6 +66,8 @@ def main(log_level: int = rospy.ERROR) -> None:
                 # 9035 config
                 configs, model, back_bevmap, peak_thresh=0.2, class_idx=1,
             )
+
+        # inference_end = timer()
 
         if log_level == rospy.DEBUG:   
             print(f"fps: {(fps_0 + fps_1 + fps_2) / 6}")
@@ -74,10 +80,13 @@ def main(log_level: int = rospy.ERROR) -> None:
             debug_img_pub.publish(debug_img_ros)
 
         # [confidence, cls_id, x, y, z, h, w, l, yaw]
-        bboxes_0 = convert_det_to_real_values(detections=detections_0, z_offset=0.55)
-        bboxes_1 = convert_det_to_real_values(detections=detections_1, x_offset=40, z_offset=0.55)
+        # bboxes_0 = convert_det_to_real_values(detections=detections_0, z_offset=0.55)
+        bboxes_0 = convert_det_to_real_values(detections=detections_0)
+        # bboxes_1 = convert_det_to_real_values(detections=detections_1, x_offset=40, z_offset=0.55)
+        bboxes_1 = convert_det_to_real_values(detections=detections_1, x_offset=40)
         # 9040 config
-        bboxes_2 = convert_det_to_real_values(detections=detections_2, x_offset=-10, z_offset=0.55, backwards=True)
+        # bboxes_2 = convert_det_to_real_values(detections=detections_2, x_offset=-10, z_offset=0.55, backwards=True)
+        bboxes_2 = convert_det_to_real_values(detections=detections_2, x_offset=-10, backwards=True)
 
         bboxes = np.array([], dtype=np.float32).reshape(0, 9)
         if bboxes_0.shape[0]:
@@ -87,10 +96,19 @@ def main(log_level: int = rospy.ERROR) -> None:
         if bboxes_2.shape[0]:
             bboxes = np.concatenate((bboxes, bboxes_2), axis=0)
 
-        bboxes = bev_center_nms(bboxes, thresh_x=1.0, thresh_y=1.0)
+        bboxes = bev_center_nms(bboxes, thresh_x=2.0, thresh_y=1.5)
+        # bboxes = ego_nms(np.array(bboxes))
+        bboxes = ego_nms(bboxes)
         rosboxes = bboxes_to_rosmsg(bboxes, data[0].header.stamp)
+        # rosboxes = bboxes_to_rosmsg(bboxes, rospy.rostime.Time.now())
 
+        # end_time = timer()
         bbox_pub.publish(rosboxes)
+
+        # print(f"Pre-processing latency: {preprocessing_end - start_time}")
+        # print(f"Inference latency: {inference_end - preprocessing_end}")
+        # print(f"Post-processing latency: {end_time - inference_end}")
+        # print(f"Total latency: {end_time - start_time}")
 
     configs = parse_demo_configs()
     configs.device = torch.device(
@@ -98,7 +116,8 @@ def main(log_level: int = rospy.ERROR) -> None:
     )
 
     model = create_model(configs)
-    model.load_state_dict(torch.load(configs.pretrained_path, map_location="cpu"))
+    # model.load_state_dict(torch.load(configs.pretrained_path, map_location="cpu"))
+    model.load_state_dict(torch.load("../checkpoints/fpn_resnet_18/Model_fpn_resnet_18_epoch_8.pth", map_location="cpu"))
     model = model.to(configs.device)
 
     rospy.init_node("sfa3d_detector", log_level=log_level)
@@ -117,15 +136,15 @@ def main(log_level: int = rospy.ERROR) -> None:
     bbox_pub = rospy.Publisher(
         name="/perception/sfa3d/bboxes",
         data_class=BoundingBoxArray,
-        queue_size=10,
+        queue_size=1,
     )
 
     ts = message_filters.ApproximateTimeSynchronizer(
         fs=[
             point_cloud_sub,
         ],
-        queue_size=10,
-        slop=0.1,  # in secs
+        queue_size=1,
+        slop=0.01,  # in secs
     )
     ts.registerCallback(perception_callback)
 
