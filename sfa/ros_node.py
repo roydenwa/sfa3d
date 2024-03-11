@@ -100,7 +100,6 @@ def main(log_level: int = rospy.ERROR) -> None:
         # bboxes = ego_nms(np.array(bboxes))
         bboxes = ego_nms(bboxes)
         rosboxes = bboxes_to_rosmsg(bboxes, data[0].header.stamp)
-        # rosboxes = bboxes_to_rosmsg(bboxes, rospy.rostime.Time.now())
 
         # end_time = timer()
         bbox_pub.publish(rosboxes)
