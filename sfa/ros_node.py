@@ -31,7 +31,7 @@ def main(log_level: int = rospy.ERROR) -> None:
     def perception_callback(*data):
         start_time = timer()
         point_cloud = pcl.PointCloud(data[0])
-        serialization_end = timer()
+        deserialization_end = timer()
 
         point_cloud = preprocess_point_cloud(point_cloud)
 
@@ -118,17 +118,17 @@ def main(log_level: int = rospy.ERROR) -> None:
         bboxes = ego_nms(bboxes)
         rosboxes = bboxes_to_rosmsg(bboxes, data[0].header.stamp)
 
-        end_time = timer()
+        postprocessing_end = timer()
         bbox_pub.publish(rosboxes)
-        end_publish = timer()
+        publish_end = timer()
 
         if log_level == rospy.DEBUG:
-            rospy.logdebug(f"Serialization latency: {serialization_end - start_time} s")
-            rospy.logdebug(f"Pre-processing latency: {preprocessing_end - serialization_end} s")
+            rospy.logdebug(f"Deserialization latency: {deserialization_end - start_time} s")
+            rospy.logdebug(f"Pre-processing latency: {preprocessing_end - deserialization_end} s")
             rospy.logdebug(f"Inference latency: {inference_end - preprocessing_end} s")
-            rospy.logdebug(f"Post-processing latency: {end_time - inference_end} s")
-            rospy.logdebug(f"Total latency: {end_time - start_time} s")
-            rospy.logdebug(f"Message publishing latency: {end_publish - end_time} s")
+            rospy.logdebug(f"Post-processing latency: {postprocessing_end - inference_end} s")
+            rospy.logdebug(f"Message publishing latency: {publish_end - postprocessing_end} s")
+            rospy.logdebug(f"Total latency: {publish_end - start_time} s")
 
     configs = parse_demo_configs()
     configs.device = torch.device(
