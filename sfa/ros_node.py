@@ -112,8 +112,10 @@ def main(log_level: int = rospy.ERROR) -> None:
 
     rospy.init_node("sfa3d_detector", log_level=log_level)
 
-    point_cloud_sub = message_filters.Subscriber(
-        "/sensor/lidar/box_top/center/vls128_ap/points", PointCloud2
+    point_cloud_sub = rospy.Subscriber(
+        name="/sensor/lidar/box_top/center/vls128_ap/points", 
+        data_class=PointCloud2,
+        callback=perception_callback,
     )
     
     bbox_pub = rospy.Publisher(
@@ -121,15 +123,6 @@ def main(log_level: int = rospy.ERROR) -> None:
         data_class=BoundingBoxArray,
         queue_size=1,
     )
-
-    ts = message_filters.ApproximateTimeSynchronizer(
-        fs=[
-            point_cloud_sub,
-        ],
-        queue_size=1,
-        slop=0.01,  # in secs
-    )
-    ts.registerCallback(perception_callback)
 
     rospy.Timer(rospy.Duration(secs=10), callback=shutdown_callback)
     rospy.spin()
