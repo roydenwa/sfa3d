@@ -24,7 +24,7 @@ from utils.visualization_utils import merge_rgb_to_bev
 
 def main(log_level: int = rospy.ERROR) -> None:
     def perception_callback(*data):
-        # start_time = timer()
+        start_time = timer()
         point_cloud = pcl.PointCloud(data[0])
         point_cloud = preprocess_point_cloud(point_cloud)
 
@@ -53,31 +53,21 @@ def main(log_level: int = rospy.ERROR) -> None:
             front_bevmap_1 = future_1.result()
             back_bevmap = future_2.result()
             
-        # preprocessing_end = timer()
+        preprocessing_end = timer()
       
         with torch.no_grad():
-            detections_0, bev_map_0, fps_0 = do_detect(
+            detections_0, *_ = do_detect(
                 configs, model, front_bevmap_0, peak_thresh=0.2, # Only vehicles
             )
-            detections_1, bev_map_1, fps_1 = do_detect(
+            detections_1, *_ = do_detect(
                 configs, model, front_bevmap_1, peak_thresh=0.4, class_idx=1,
             )
-            detections_2, bev_map, fps_2 = do_detect(
+            detections_2, *_ = do_detect(
                 # 9035 config
                 configs, model, back_bevmap, peak_thresh=0.2, class_idx=1,
             )
 
-        # inference_end = timer()
-
-        if log_level == rospy.DEBUG:   
-            print(f"fps: {(fps_0 + fps_1 + fps_2) / 6}")
-            bev_map = back_bevmap
-            bev_map = (bev_map.permute(1, 2, 0).numpy() * 255).astype(np.uint8)
-            bev_map = cv2.resize(bev_map, (cnf.BEV_WIDTH, cnf.BEV_HEIGHT))
-            
-            debug_img = bev_map
-            debug_img_ros = cv2_to_imgmsg(debug_img)
-            debug_img_pub.publish(debug_img_ros)
+        inference_end = timer()
 
         # [confidence, cls_id, x, y, z, h, w, l, yaw]
         # bboxes_0 = convert_det_to_real_values(detections=detections_0, z_offset=0.55)
@@ -101,13 +91,14 @@ def main(log_level: int = rospy.ERROR) -> None:
         bboxes = ego_nms(bboxes)
         rosboxes = bboxes_to_rosmsg(bboxes, data[0].header.stamp)
 
-        # end_time = timer()
+        end_time = timer()
         bbox_pub.publish(rosboxes)
 
-        # print(f"Pre-processing latency: {preprocessing_end - start_time}")
-        # print(f"Inference latency: {inference_end - preprocessing_end}")
-        # print(f"Post-processing latency: {end_time - inference_end}")
-        # print(f"Total latency: {end_time - start_time}")
+        if log_level == rospy.DEBUG:
+            print(f"Pre-processing latency: {preprocessing_end - start_time}")
+            print(f"Inference latency: {inference_end - preprocessing_end}")
+            print(f"Post-processing latency: {end_time - inference_end}")
+            print(f"Total latency: {end_time - start_time}")
 
     configs = parse_demo_configs()
     configs.device = torch.device(
@@ -124,14 +115,7 @@ def main(log_level: int = rospy.ERROR) -> None:
     point_cloud_sub = message_filters.Subscriber(
         "/sensor/lidar/box_top/center/vls128_ap/points", PointCloud2
     )
-
-    if log_level == rospy.DEBUG:
-        debug_img_pub = rospy.Publisher(
-            name="/perception/sfa3d/debug_image",
-            data_class=Image,
-            queue_size=10,
-        )
-
+    
     bbox_pub = rospy.Publisher(
         name="/perception/sfa3d/bboxes",
         data_class=BoundingBoxArray,
