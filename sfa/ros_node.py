@@ -82,7 +82,6 @@ def main(log_level: int = rospy.ERROR) -> None:
                 class_idx=1, # Only vehicles
             )
             detections_2, *_ = detect(
-                # 9035 config
                 configs,
                 model,
                 back_bevmap,
@@ -118,12 +117,14 @@ def main(log_level: int = rospy.ERROR) -> None:
 
         end_time = timer()
         bbox_pub.publish(rosboxes)
+        end_publish = timer()
 
         if log_level == rospy.DEBUG:
             print(f"Pre-processing latency: {preprocessing_end - start_time}")
             print(f"Inference latency: {inference_end - preprocessing_end}")
             print(f"Post-processing latency: {end_time - inference_end}")
             print(f"Total latency: {end_time - start_time}")
+            print(f"Message publishing latency: {end_publish - end_time}")
 
     configs = parse_demo_configs()
     configs.device = torch.device(
