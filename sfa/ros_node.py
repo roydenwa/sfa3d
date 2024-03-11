@@ -26,7 +26,8 @@ from models.model_utils import create_model
 from utils.demo_utils import parse_demo_configs, do_detect as detect
 
 
-def main(log_level: int = rospy.ERROR) -> None:
+# def main(log_level: int = rospy.ERROR) -> None:
+def main(log_level: int = rospy.DEBUG) -> None:
     def perception_callback(*data):
         start_time = timer()
         point_cloud = pcl.PointCloud(data[0])
@@ -120,11 +121,11 @@ def main(log_level: int = rospy.ERROR) -> None:
         end_publish = timer()
 
         if log_level == rospy.DEBUG:
-            print(f"Pre-processing latency: {preprocessing_end - start_time}")
-            print(f"Inference latency: {inference_end - preprocessing_end}")
-            print(f"Post-processing latency: {end_time - inference_end}")
-            print(f"Total latency: {end_time - start_time}")
-            print(f"Message publishing latency: {end_publish - end_time}")
+            rospy.logdebug(f"Pre-processing latency: {preprocessing_end - start_time} s")
+            rospy.logdebug(f"Inference latency: {inference_end - preprocessing_end} s")
+            rospy.logdebug(f"Post-processing latency: {end_time - inference_end} s")
+            rospy.logdebug(f"Total latency: {end_time - start_time} s")
+            rospy.logdebug(f"Message publishing latency: {end_publish - end_time} s")
 
     configs = parse_demo_configs()
     configs.device = torch.device(
