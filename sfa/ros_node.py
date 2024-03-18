@@ -26,14 +26,19 @@ from models.model_utils import create_model
 from utils.demo_utils import parse_demo_configs, do_detect as detect
 
 
-def main(log_level: int = rospy.ERROR) -> None:
-# def main(log_level: int = rospy.DEBUG) -> None:
+# def main(log_level: int = rospy.ERROR) -> None:
+def main(log_level: int = rospy.DEBUG) -> None:
     def perception_callback(*data):
+        delay = data[0].header.stamp - rospy.rostime.Time.now()
+        # print(f"Pcd message delay: {delay.to_sec()}")
+
         start_time = timer()
         point_cloud = pcl.PointCloud(data[0])
         deserialization_end = timer()
 
         point_cloud = preprocess_point_cloud(point_cloud)
+        
+        preprocessing_end = timer()
 
         with cf.ThreadPoolExecutor(3) as pool:
             future_0 = pool.submit(load_bevmap, point_cloud)
@@ -68,7 +73,7 @@ def main(log_level: int = rospy.ERROR) -> None:
             front_bevmap_1 = future_1.result()
             back_bevmap = future_2.result()
 
-        preprocessing_end = timer()
+        to_bevmap_end = timer()
 
         with torch.no_grad():
             detections_0, *_ = detect(
@@ -94,13 +99,10 @@ def main(log_level: int = rospy.ERROR) -> None:
 
         inference_end = timer()
 
-        # [confidence, cls_id, x, y, z, h, w, l, yaw]
-        # bboxes_0 = convert_det_to_real_values(detections=detections_0, z_offset=0.55)
-        bboxes_0 = convert_det_to_real_values(detections=detections_0)
-        # bboxes_1 = convert_det_to_real_values(detections=detections_1, x_offset=40, z_offset=0.55)
-        bboxes_1 = convert_det_to_real_values(detections=detections_1, x_offset=40)
         # 9040 config
-        # bboxes_2 = convert_det_to_real_values(detections=detections_2, x_offset=-10, z_offset=0.55, backwards=True)
+        # [confidence, cls_id, x, y, z, h, w, l, yaw]
+        bboxes_0 = convert_det_to_real_values(detections=detections_0)
+        bboxes_1 = convert_det_to_real_values(detections=detections_1, x_offset=40)
         bboxes_2 = convert_det_to_real_values(
             detections=detections_2, x_offset=-10, backwards=True
         )
@@ -125,7 +127,8 @@ def main(log_level: int = rospy.ERROR) -> None:
         if log_level == rospy.DEBUG:
             rospy.logdebug(f"Deserialization latency: {deserialization_end - start_time} s")
             rospy.logdebug(f"Pre-processing latency: {preprocessing_end - deserialization_end} s")
-            rospy.logdebug(f"Inference latency: {inference_end - preprocessing_end} s")
+            rospy.logdebug(f"To bevmap latency: {to_bevmap_end - preprocessing_end} s")
+            rospy.logdebug(f"Inference latency: {inference_end - to_bevmap_end} s")
             rospy.logdebug(f"Post-processing latency: {postprocessing_end - inference_end} s")
             rospy.logdebug(f"Message publishing latency: {publish_end - postprocessing_end} s")
             rospy.logdebug(f"Total latency: {publish_end - start_time} s")
@@ -145,19 +148,29 @@ def main(log_level: int = rospy.ERROR) -> None:
     )
     model = model.to(configs.device)
 
+    # Init model and jit post processing
+    bevmap = torch.zeros((1, 3, 608, 608), dtype=torch.float32, device="cuda")
+    bboxes = np.array([], dtype=np.float32).reshape(0, 9)
+
+    model(bevmap)
+    bev_center_nms(bboxes)
+    print("Init model.")
+
     rospy.init_node("sfa3d_detector", log_level=log_level)
 
     point_cloud_sub = rospy.Subscriber(
         name="/sensor/lidar/box_top/center/vls128_ap/points",
         data_class=PointCloud2,
         callback=perception_callback,
+        queue_size=1,
+        buff_size=int(10e9),
     )
 
     bbox_pub = rospy.Publisher(
         name="/perception/sfa3d/bboxes",
         data_class=BoundingBoxArray,
         queue_size=1,
-    )
+    ) 
 
     rospy.Timer(rospy.Duration(secs=10), callback=shutdown_callback)
     rospy.spin()
