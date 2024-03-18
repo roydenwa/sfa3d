@@ -83,20 +83,20 @@ def main(log_level: int = rospy.DEBUG) -> None:
         to_bevmap_end = timer()
 
         with torch.inference_mode():
-            detections_0, *_ = detect(
+            front_detections_0, *_ = detect(
                 configs,
                 model,
                 front_bevmap_0,
                 peak_thresh=0.2,
             )
-            detections_1, *_ = detect(
+            front_detections_1, *_ = detect(
                 configs,
                 model,
                 front_bevmap_1,
                 peak_thresh=0.4,
                 class_idx=1,  # Only vehicles
             )
-            detections_2, *_ = detect(
+            back_detections, *_ = detect(
                 configs,
                 model,
                 back_bevmap,
@@ -108,10 +108,10 @@ def main(log_level: int = rospy.DEBUG) -> None:
 
         # Post-processing for 9040 config
         # [confidence, cls_id, x, y, z, h, w, l, yaw]
-        bboxes_0 = convert_det_to_real_values(detections=detections_0)
-        bboxes_1 = convert_det_to_real_values(detections=detections_1, x_offset=40)
+        bboxes_0 = convert_det_to_real_values(detections=front_detections_0)
+        bboxes_1 = convert_det_to_real_values(detections=front_detections_1, x_offset=40)
         bboxes_2 = convert_det_to_real_values(
-            detections=detections_2, x_offset=-10, backwards=True
+            detections=back_detections, x_offset=-10, backwards=True
         )
 
         bboxes = np.array([], dtype=np.float32).reshape(0, 9)
