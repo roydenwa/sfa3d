@@ -18,10 +18,58 @@ if src_dir not in sys.path:
 
 import config.kitti_config as cnf
 
+from timeit import default_timer as timer
+
+
+def rasterize_bevmap(point_cloud, z_max=1.27, z_min=-2.73, n_lasers=128, center_y: bool = True):
+    """Optimized version of kitti_bev_utils.makeBEVMap using int16 and float32 dtypes"""
+    height = cnf.BEV_HEIGHT + 1
+    width = cnf.BEV_WIDTH + 1
+
+    # Discretize x and y coordinates
+    _point_cloud = np.copy(point_cloud)
+    _point_cloud[:, 0] = (np.floor(_point_cloud[:, 0] / cnf.DISCRETIZATION))
+    
+    if center_y:
+        _point_cloud[:, 1] = (np.floor(_point_cloud[:, 1] / cnf.DISCRETIZATION) + width / 2)
+    else:
+        _point_cloud[:, 1] = (np.floor(_point_cloud[:, 1] / cnf.DISCRETIZATION))
+    
+    _point_cloud = _point_cloud.astype(np.int16)
+
+    # Sort 3times
+    sorted_indices = np.lexsort((-_point_cloud[:, 2], _point_cloud[:, 1], _point_cloud[:, 0]))
+    _point_cloud = _point_cloud[sorted_indices]
+
+    _, unique_indices, unique_counts = np.unique(_point_cloud[:, 0:2], axis=0, return_index=True, return_counts=True)
+    _point_cloud_top = _point_cloud[unique_indices]
+
+    # Intensity, height and density maps
+    intensity_map = np.zeros((height, width), dtype=np.float32)
+    height_map = np.zeros((height, width), dtype=np.float32)
+    density_map = np.zeros((height, width), dtype=np.float32)
+
+    # Image coordinates are (y, x), not (x, y)
+    max_height = np.float32(np.abs(z_max - z_min))
+    height_map[_point_cloud_top[:, 0], _point_cloud_top[:, 1]] = _point_cloud_top[:, 2] / max_height
+
+    normalized_counts = np.minimum(1.0, np.log(unique_counts + 1) / np.log(n_lasers))
+    intensity_map[_point_cloud_top[:, 0], _point_cloud_top[:, 1]] = _point_cloud_top[:, 3]
+    density_map[_point_cloud_top[:, 0], _point_cloud_top[:, 1]] = normalized_counts
+
+    ihd_map = np.zeros((3, cnf.BEV_HEIGHT, cnf.BEV_WIDTH), dtype=np.float32)
+    ihd_map[0, :, :] = intensity_map[:cnf.BEV_HEIGHT, :cnf.BEV_WIDTH]
+    ihd_map[1, :, :] = height_map[:cnf.BEV_HEIGHT, :cnf.BEV_WIDTH]
+    ihd_map[2, :, :] = density_map[:cnf.BEV_HEIGHT, :cnf.BEV_WIDTH]
+
+    return ihd_map
+
 
 def makeBEVMap(PointCloud_, boundary, n_lasers=128, center_y: bool = True): # KITTI LiDAR has 64 lasers
     Height = cnf.BEV_HEIGHT + 1
     Width = cnf.BEV_WIDTH + 1
+
+    discretize_start = timer()
 
     # Discretize Feature Map
     PointCloud = np.copy(PointCloud_)
@@ -31,12 +79,16 @@ def makeBEVMap(PointCloud_, boundary, n_lasers=128, center_y: bool = True): # KI
     else:
         PointCloud[:, 1] = np.int_(np.floor(PointCloud[:, 1] / cnf.DISCRETIZATION))
 
+    discretize_end = timer()
 
-    # sort-3times
-    sorted_indices = np.lexsort((-PointCloud[:, 2], PointCloud[:, 1], PointCloud[:, 0]))
-    PointCloud = PointCloud[sorted_indices]
+    # sort-3times, not required but speeds up subsequent np.unique
+    # sorted_indices = np.lexsort((-PointCloud[:, 2], PointCloud[:, 1], PointCloud[:, 0]))
+    # PointCloud = PointCloud[sorted_indices]
+
+    sorting_end = timer()
     _, unique_indices, unique_counts = np.unique(PointCloud[:, 0:2], axis=0, return_index=True, return_counts=True)
     PointCloud_top = PointCloud[unique_indices]
+    unique_counts_end = timer()
 
     # Height Map, Intensity Map & Density Map
     heightMap = np.zeros((Height, Width))
@@ -55,6 +107,13 @@ def makeBEVMap(PointCloud_, boundary, n_lasers=128, center_y: bool = True): # KI
     RGB_Map[2, :, :] = densityMap[:cnf.BEV_HEIGHT, :cnf.BEV_WIDTH]  # r_map
     RGB_Map[1, :, :] = heightMap[:cnf.BEV_HEIGHT, :cnf.BEV_WIDTH]  # g_map
     RGB_Map[0, :, :] = intensityMap[:cnf.BEV_HEIGHT, :cnf.BEV_WIDTH]  # b_map
+
+    bevmap_set_end = timer()
+    
+    print(f"Bevmap discretization latency: {discretize_end - discretize_start} s")
+    print(f"Bevmap sorting latency: {sorting_end - discretize_end} s")
+    print(f"Bevmap unique elems latency: {unique_counts_end - sorting_end} s")
+    print(f"Bevmap set elems latency: {bevmap_set_end - unique_counts_end} s")
 
     return RGB_Map
 

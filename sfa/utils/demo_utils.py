@@ -108,7 +108,7 @@ def download_and_unzip(demo_dataset_dir, download_url):
 
 def do_detect(configs, model, bevmap, peak_thresh: float = None, class_idx: int = None):
     input_bev_maps = bevmap.unsqueeze(0).to(configs.device, non_blocking=True).float()
-    t1 = time_synchronized()
+    # t1 = time_synchronized()
     outputs = model(input_bev_maps)
     outputs['hm_cen'] = _sigmoid(outputs['hm_cen'])
     outputs['cen_offset'] = _sigmoid(outputs['cen_offset'])
@@ -124,11 +124,11 @@ def do_detect(configs, model, bevmap, peak_thresh: float = None, class_idx: int 
     else:
         detections = post_processing(detections, configs.num_classes, configs.down_ratio, configs.peak_thresh)
     
-    t2 = time_synchronized()
-    # Inference speed
-    fps = 1 / (t2 - t1)
+    # t2 = time_synchronized()
+    # # Inference speed
+    # fps = 1 / (t2 - t1)
 
-    return detections[0], bevmap, fps
+    return detections[0], bevmap#, fps
 
 
 def write_credit(img, org_author=(500, 400), text_author='github.com/maudzung', org_fps=(50, 1000), fps=None):

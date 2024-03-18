@@ -32,7 +32,7 @@ from utils.demo_utils import (
 )
 
 from data_process.kitti_data_utils import get_filtered_lidar
-from data_process.kitti_bev_utils import makeBEVMap
+from data_process.kitti_bev_utils import makeBEVMap, rasterize_bevmap
 import config.kitti_config as cnf
 
 from utils.misc import time_synchronized
@@ -47,6 +47,8 @@ from numba import njit
 from sensor_msgs.msg import Image, PointCloud2
 from tf.transformations import quaternion_from_euler
 from jsk_recognition_msgs.msg import BoundingBox, BoundingBoxArray
+
+from timeit import default_timer as timer
 
 
 def read_lidar_bin(path):
@@ -64,11 +66,11 @@ def load_bevmap(
 ):
     if not boundary:
         lidar = get_filtered_lidar(pcd, cnf.boundary)
-        bevmap = makeBEVMap(lidar, cnf.boundary, n_lasers, center_y)
+        bevmap = rasterize_bevmap(lidar, n_lasers=n_lasers, center_y=center_y)
     else:
         lidar = get_filtered_lidar(pcd, boundary)
         lidar[:, 0] = lidar[:, 0] - boundary["minX"]
-        bevmap = makeBEVMap(lidar, boundary, n_lasers, center_y)
+        bevmap = rasterize_bevmap(lidar, n_lasers=n_lasers, center_y=center_y)
 
     bevmap = torch.from_numpy(bevmap)
 
@@ -295,7 +297,7 @@ def shutdown_callback(event):
         os.kill(os.getpid(), signal.SIGTERM)
 
 
-# @njit
+@njit
 def ego_nms(
     bboxes_in: np.ndarray, x_thresh: float = 1.5, y_thresh: float = 1.5
 ) -> list:
