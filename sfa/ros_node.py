@@ -29,15 +29,20 @@ from utils.demo_utils import parse_demo_configs, do_detect as detect
 # def main(log_level: int = rospy.ERROR) -> None:
 def main(log_level: int = rospy.DEBUG) -> None:
     def perception_callback(*data):
-        delay = data[0].header.stamp - rospy.rostime.Time.now()
-        # print(f"Pcd message delay: {delay.to_sec()}")
+        pcd_msg_delay = rospy.rostime.Time.now() - data[0].header.stamp
+
+        if not log_level == rospy.DEBUG:
+            if pcd_msg_delay.to_sec() > 0.15:
+                rospy.loginfo("Dropping point cloud message since it is delayed by more than 0.15 s.")
+                return
+        else:
+            rospy.logdebug(f"Point cloud message delay: {pcd_msg_delay.to_sec()} s")
 
         start_time = timer()
         point_cloud = pcl.PointCloud(data[0])
         deserialization_end = timer()
 
-        point_cloud = preprocess_point_cloud(point_cloud)
-        
+        point_cloud = preprocess_point_cloud(point_cloud)        
         preprocessing_end = timer()
 
         with cf.ThreadPoolExecutor(3) as pool:
