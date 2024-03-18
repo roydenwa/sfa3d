@@ -33,7 +33,9 @@ def main(log_level: int = rospy.DEBUG) -> None:
 
         if not log_level == rospy.DEBUG:
             if pcd_msg_delay.to_sec() > 0.15:
-                rospy.loginfo("Dropping point cloud message since it is delayed by more than 0.15 s.")
+                rospy.loginfo(
+                    "Dropping point cloud message since it is delayed by more than 0.15 s."
+                )
                 return
         else:
             rospy.logdebug(f"Point cloud message delay: {pcd_msg_delay.to_sec()} s")
@@ -42,7 +44,7 @@ def main(log_level: int = rospy.DEBUG) -> None:
         point_cloud = pcl.PointCloud(data[0])
         deserialization_end = timer()
 
-        point_cloud = preprocess_point_cloud(point_cloud)        
+        point_cloud = preprocess_point_cloud(point_cloud)
         preprocessing_end = timer()
 
         with cf.ThreadPoolExecutor(3) as pool:
@@ -92,7 +94,7 @@ def main(log_level: int = rospy.DEBUG) -> None:
                 model,
                 front_bevmap_1,
                 peak_thresh=0.4,
-                class_idx=1, # Only vehicles
+                class_idx=1,  # Only vehicles
             )
             detections_2, *_ = detect(
                 configs,
@@ -130,12 +132,20 @@ def main(log_level: int = rospy.DEBUG) -> None:
         publish_end = timer()
 
         if log_level == rospy.DEBUG:
-            rospy.logdebug(f"Deserialization latency: {deserialization_end - start_time} s")
-            rospy.logdebug(f"Pre-processing latency: {preprocessing_end - deserialization_end} s")
+            rospy.logdebug(
+                f"Deserialization latency: {deserialization_end - start_time} s"
+            )
+            rospy.logdebug(
+                f"Pre-processing latency: {preprocessing_end - deserialization_end} s"
+            )
             rospy.logdebug(f"To bevmap latency: {to_bevmap_end - preprocessing_end} s")
             rospy.logdebug(f"Inference latency: {inference_end - to_bevmap_end} s")
-            rospy.logdebug(f"Post-processing latency: {postprocessing_end - inference_end} s")
-            rospy.logdebug(f"Message publishing latency: {publish_end - postprocessing_end} s")
+            rospy.logdebug(
+                f"Post-processing latency: {postprocessing_end - inference_end} s"
+            )
+            rospy.logdebug(
+                f"Message publishing latency: {publish_end - postprocessing_end} s"
+            )
             rospy.logdebug(f"Total latency: {publish_end - start_time} s")
 
     configs = parse_demo_configs()
@@ -175,7 +185,7 @@ def main(log_level: int = rospy.DEBUG) -> None:
         name="/perception/sfa3d/bboxes",
         data_class=BoundingBoxArray,
         queue_size=1,
-    ) 
+    )
 
     rospy.Timer(rospy.Duration(secs=10), callback=shutdown_callback)
     rospy.spin()
