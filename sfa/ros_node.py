@@ -106,7 +106,7 @@ def main(log_level: int = rospy.DEBUG) -> None:
 
         inference_end = timer()
 
-        # 9040 config
+        # Post-processing for 9040 config
         # [confidence, cls_id, x, y, z, h, w, l, yaw]
         bboxes_0 = convert_det_to_real_values(detections=detections_0)
         bboxes_1 = convert_det_to_real_values(detections=detections_1, x_offset=40)
@@ -123,7 +123,6 @@ def main(log_level: int = rospy.DEBUG) -> None:
             bboxes = np.concatenate((bboxes, bboxes_2), axis=0)
 
         bboxes = bev_center_nms(bboxes, thresh_x=2.0, thresh_y=1.5)
-        # bboxes = ego_nms(np.array(bboxes))
         bboxes = ego_nms(bboxes)
         rosboxes = bboxes_to_rosmsg(bboxes, data[0].header.stamp)
 
