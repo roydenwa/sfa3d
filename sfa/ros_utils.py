@@ -297,7 +297,6 @@ def shutdown_callback(event):
         os.kill(os.getpid(), signal.SIGTERM)
 
 
-@njit
 def ego_nms(
     bboxes_in: np.ndarray, x_thresh: float = 1.5, y_thresh: float = 1.5
 ) -> list:
