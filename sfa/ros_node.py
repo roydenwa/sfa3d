@@ -75,7 +75,7 @@ def main(log_level: int = rospy.DEBUG) -> None:
 
         to_bevmap_end = timer()
 
-        with torch.no_grad():
+        with torch.inference_mode():
             detections_0, *_ = detect(
                 configs,
                 model,
