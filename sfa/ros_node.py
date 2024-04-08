@@ -23,8 +23,8 @@ from models.model_utils import create_model
 from utils.demo_utils import parse_demo_configs, do_detect as detect
 
 
-# def main(log_level: int = rospy.INFO) -> None:
-def main(log_level: int = rospy.DEBUG) -> None:
+def main(log_level: int = rospy.INFO) -> None:
+# def main(log_level: int = rospy.DEBUG) -> None:
     def perception_callback(*data):
         pcd_msg_delay = rospy.rostime.Time.now() - data[0].header.stamp
 
