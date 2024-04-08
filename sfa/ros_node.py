@@ -31,11 +31,11 @@ def main(log_level: int = rospy.DEBUG) -> None:
         if not log_level == rospy.DEBUG:
             if pcd_msg_delay.to_sec() > 0.15:
                 rospy.loginfo(
-                    "Dropping point cloud message since it is delayed by more than 0.15 s."
+                    "Dropping point cloud message since the delay to ROS time now > 0.15 s."
                 )
                 return
         else:
-            rospy.logdebug(f"Point cloud message delay: {pcd_msg_delay.to_sec()} s")
+            rospy.logdebug(f"Point cloud message delay to ROS time now: {pcd_msg_delay.to_sec()} s")
 
         start_time = timer()
         point_cloud = pcl.PointCloud(data[0])
