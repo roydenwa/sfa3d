@@ -13,12 +13,13 @@ from jsk_recognition_msgs.msg import BoundingBoxArray
 
 import config.kitti_config as cnf
 from ros_utils import (
-    load_bevmap,
     preprocess_point_cloud,
     bev_center_nms,
     bboxes_to_rosmsg,
     shutdown_callback,
     ego_nms,
+    rasterize_bev_pillars,
+    filter_point_cloud,
 )
 
 from utils.evaluation_utils import convert_det_to_real_values
@@ -26,8 +27,8 @@ from models.model_utils import create_model
 from utils.demo_utils import parse_demo_configs, do_detect as detect
 
 
-def main(log_level: int = rospy.INFO) -> None:
-# def main(log_level: int = rospy.DEBUG) -> None:
+# def main(log_level: int = rospy.INFO) -> None:
+def main(log_level: int = rospy.DEBUG) -> None:
     def perception_callback(*data):
         pcd_msg_delay = rospy.rostime.Time.now() - data[0].header.stamp
 
@@ -45,83 +46,33 @@ def main(log_level: int = rospy.INFO) -> None:
         deserialization_end = timer()
 
         point_cloud = preprocess_point_cloud(point_cloud)
-        preprocessing_end = timer()
-
-        with cf.ThreadPoolExecutor(3) as pool:
-            future_0 = pool.submit(load_bevmap, point_cloud)
-            future_1 = pool.submit(
-                load_bevmap,
-                point_cloud,
-                n_lasers=64,
-                boundary={
-                    "minX": 40,
-                    "maxX": 90,
-                    "minY": -25,
-                    "maxY": 25,
-                    "minZ": -2.73,
-                    "maxZ": 1.27,
-                },
-            )
-            future_2 = pool.submit(
-                load_bevmap,
-                point_cloud,
-                is_back=True,
-                boundary={
-                    "minX": -40,
-                    "maxX": 10,
-                    "minY": -25,
-                    "maxY": 25,
-                    "minZ": -2.73,
-                    "maxZ": 1.27,
-                },
-            )
-
-            front_bevmap_0 = future_0.result()
-            front_bevmap_1 = future_1.result()
-            back_bevmap = future_2.result()
-
-        to_bevmap_end = timer()
-
-        with torch.inference_mode():
-            front_detections_0, *_ = detect(
-                configs,
-                model,
-                front_bevmap_0,
-                peak_thresh=0.2,
-            )
-            front_detections_1, *_ = detect(
-                configs,
-                model,
-                front_bevmap_1,
-                peak_thresh=0.4,
-                class_idx=1,  # Only vehicles
-            )
-            back_detections, *_ = detect(
-                configs,
-                model,
-                back_bevmap,
-                peak_thresh=0.2,
-                class_idx=1,
-            )
-
-        inference_end = timer()
-
-        # Post-processing for 9040 config
-        # [confidence, cls_id, x, y, z, h, w, l, yaw]
-        bboxes_0 = convert_det_to_real_values(detections=front_detections_0)
-        bboxes_1 = convert_det_to_real_values(detections=front_detections_1, x_offset=40)
-        bboxes_2 = convert_det_to_real_values(
-            detections=back_detections, x_offset=-10, backwards=True
+        point_cloud = filter_point_cloud(
+            point_cloud, x_min=-25, x_max=75, y_min=-25, y_max=25, z_min=-2.73, z_max=1.27,
         )
 
-        bboxes = np.array([], dtype=np.float32).reshape(0, 9)
-        if bboxes_0.shape[0]:
-            bboxes = np.concatenate((bboxes, bboxes_0), axis=0)
-        if bboxes_1.shape[0]:
-            bboxes = np.concatenate((bboxes, bboxes_1), axis=0)
-        if bboxes_2.shape[0]:
-            bboxes = np.concatenate((bboxes, bboxes_2), axis=0)
+        # Set min to (0, 0, 0)
+        point_cloud[:, 0] -= -25
+        point_cloud[:, 1] -= -25
+        point_cloud[:, 2] -= -2.73
 
+        point_cloud = torch.from_numpy(point_cloud)
+        preprocessing_end = timer()
+
+        bev_pillars = rasterize_bev_pillars(point_cloud, bev_height=608 * 2)
+        to_bev_pillars_end = timer()
+
+        with torch.inference_mode():
+            detections, *_ = detect(
+                configs,
+                model,
+                bev_pillars,
+                peak_thresh=0.2,
+            )
+        inference_end = timer()
+
+        # Post-processing
+        # [confidence, cls_id, x, y, z, h, w, l, yaw]
+        bboxes = convert_det_to_real_values(detections=detections, x_offset=-25)
         bboxes = bev_center_nms(bboxes, thresh_x=2.0, thresh_y=1.5)
         bboxes = ego_nms(bboxes)
         rosboxes = bboxes_to_rosmsg(bboxes, data[0].header.stamp)
@@ -137,8 +88,8 @@ def main(log_level: int = rospy.INFO) -> None:
             rospy.logdebug(
                 f"Pre-processing latency: {preprocessing_end - deserialization_end} s"
             )
-            rospy.logdebug(f"To bevmap latency: {to_bevmap_end - preprocessing_end} s")
-            rospy.logdebug(f"Inference latency: {inference_end - to_bevmap_end} s")
+            rospy.logdebug(f"To BEV pillars latency: {to_bev_pillars_end - preprocessing_end} s")
+            rospy.logdebug(f"Inference latency: {inference_end - to_bev_pillars_end} s")
             rospy.logdebug(
                 f"Post-processing latency: {postprocessing_end - inference_end} s"
             )
@@ -153,7 +104,6 @@ def main(log_level: int = rospy.INFO) -> None:
     )
 
     model = create_model(configs)
-    # model.load_state_dict(torch.load(configs.pretrained_path, map_location="cpu"))
     model.load_state_dict(
         torch.load(
             "../checkpoints/fpn_resnet_18/Model_fpn_resnet_18_epoch_8.pth",
@@ -163,7 +113,7 @@ def main(log_level: int = rospy.INFO) -> None:
     model = model.to(configs.device)
 
     # Init model and jit post processing
-    bevmap = torch.zeros((1, 3, 608, 608), dtype=torch.float32, device="cuda")
+    bevmap = torch.zeros((1, 3, 1216, 608), dtype=torch.float32, device="cuda")
     bboxes = np.array([], dtype=np.float32).reshape(0, 9)
 
     model(bevmap)
