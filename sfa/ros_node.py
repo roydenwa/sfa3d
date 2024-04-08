@@ -107,14 +107,9 @@ def main(log_level: int = rospy.DEBUG) -> None:
         )
     )
     model = model.to(configs.device)
-
-    # Init model and jit post processing
-    bevmap = torch.zeros((1, 3, 1216, 608), dtype=torch.float32, device="cuda")
-    bboxes = np.array([], dtype=np.float32).reshape(0, 9)
-
-    model(bevmap)
-    bev_center_nms(bboxes)
-    print("Init model.")
+    bev_pillars = torch.zeros((1, 3, 1216, 608), dtype=torch.float32, device="cuda")
+    model(bev_pillars)
+    print("Model initialized.")
 
     rospy.init_node("sfa3d_detector", log_level=log_level)
 
