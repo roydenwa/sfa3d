@@ -174,8 +174,11 @@ def cv2_to_imgmsg(cv_image: np.ndarray) -> Image:
     return img_msg
 
 
-def bboxes_to_rosmsg(bboxes: list, timestamp) -> BoundingBoxArray:
-    # TODO: JIT (numba)
+def bboxes_to_rosmsg(
+    bboxes: list,
+    timestamp,
+    frame_id: str = "sensor/lidar/box_top/center/vls128_ap",
+) -> BoundingBoxArray:
     rosboxes = BoundingBoxArray()
 
     for bbox in bboxes:
@@ -183,7 +186,7 @@ def bboxes_to_rosmsg(bboxes: list, timestamp) -> BoundingBoxArray:
 
         rosbox = BoundingBox()
         rosbox.header.stamp = timestamp
-        rosbox.header.frame_id = "sensor/lidar/box_top/center/vls128_ap"
+        rosbox.header.frame_id = frame_id
 
         # roll, pitch and yaw
         q = quaternion_from_euler(0, 0, yaw)
@@ -204,7 +207,7 @@ def bboxes_to_rosmsg(bboxes: list, timestamp) -> BoundingBoxArray:
 
         rosboxes.boxes.append(rosbox)
 
-    rosboxes.header.frame_id = "sensor/lidar/box_top/center/vls128_ap"
+    rosboxes.header.frame_id = frame_id
     rosboxes.header.stamp = timestamp
 
     return rosboxes
