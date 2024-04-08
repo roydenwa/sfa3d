@@ -83,6 +83,45 @@ def rasterize_bev_pillars(
     return ihd_map
 
 
+def convert_det_to_real_values(
+    detections,
+    discretization_coefficient: float = 50 / 608,
+    x_min: float = 0.,
+    y_min: float = -25.,
+    z_min: float = -2.73,
+    num_classes=3,
+    x_offset: float = 0., 
+    y_offset: float = 0., 
+    z_offset: float = 0., 
+    backwards: bool = False, 
+    rot_90: bool = False,
+):
+    kitti_dets = []
+    for cls_id in range(num_classes):
+        if len(detections[cls_id]) > 0:
+            for det in detections[cls_id]:
+                # (scores-0:1, x-1:2, y-2:3, z-3:4, dim-4:7, yaw-7:8)
+                _score, _x, _y, _z, _h, _w, _l, _yaw = det
+                _yaw = -_yaw
+                x = _y * discretization_coefficient + x_min
+                y = _x * discretization_coefficient + y_min
+                z = _z + z_min
+                w = _w * discretization_coefficient
+                l = _l * discretization_coefficient
+                x += x_offset
+                y += y_offset
+                z += z_offset
+
+                if backwards:
+                    kitti_dets.append([_score, cls_id, x * -1, y * -1, z, _h, w, l, _yaw + np.deg2rad(180)])
+                elif rot_90:
+                    kitti_dets.append([_score, cls_id, -y, x, z, _h, w, l, _yaw - np.deg2rad(90)])
+                else:
+                    kitti_dets.append([_score, cls_id, x, y, z, _h, w, l, _yaw])
+
+    return np.array(kitti_dets)
+
+
 def preprocess_point_cloud(pc: pcl.PointCloud) -> np.ndarray:
     pcd_np = pc.to_ndarray()
     x = pcd_np["x"]
