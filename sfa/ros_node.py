@@ -35,7 +35,9 @@ def main(log_level: int = rospy.DEBUG) -> None:
                 )
                 return
         else:
-            rospy.logdebug(f"Point cloud message delay to ROS time now: {pcd_msg_delay.to_sec()} s")
+            rospy.logdebug(
+                f"Point cloud message delay to ROS time now: {pcd_msg_delay.to_sec()} s"
+            )
 
         start_time = timer()
         point_cloud = pcl.PointCloud(data[0])
@@ -43,7 +45,13 @@ def main(log_level: int = rospy.DEBUG) -> None:
 
         point_cloud = preprocess_point_cloud(point_cloud)
         point_cloud = filter_point_cloud(
-            point_cloud, x_min=-25, x_max=75, y_min=-25, y_max=25, z_min=-2.73, z_max=1.27,
+            point_cloud,
+            x_min=-25,
+            x_max=75,
+            y_min=-25,
+            y_max=25,
+            z_min=-2.73,
+            z_max=1.27,
         )
 
         # Set min to (0, 0, 0)
@@ -84,7 +92,9 @@ def main(log_level: int = rospy.DEBUG) -> None:
             rospy.logdebug(
                 f"Pre-processing latency: {preprocessing_end - deserialization_end} s"
             )
-            rospy.logdebug(f"To BEV pillars latency: {to_bev_pillars_end - preprocessing_end} s")
+            rospy.logdebug(
+                f"To BEV pillars latency: {to_bev_pillars_end - preprocessing_end} s"
+            )
             rospy.logdebug(f"Inference latency: {inference_end - to_bev_pillars_end} s")
             rospy.logdebug(
                 f"Post-processing latency: {postprocessing_end - inference_end} s"

@@ -25,9 +25,12 @@ def unique_torch(x, dim: int = 0):
 
 def filter_point_cloud(point_cloud, x_min, x_max, y_min, y_max, z_min, z_max):
     mask = np.where(
-        (point_cloud[:, 0] >= x_min) & (point_cloud[:, 0] <= x_max) &
-        (point_cloud[:, 1] >= y_min) & (point_cloud[:, 1] <= y_max) &
-        (point_cloud[:, 2] >= z_min) & (point_cloud[:, 2] <= z_max)
+        (point_cloud[:, 0] >= x_min)
+        & (point_cloud[:, 0] <= x_max)
+        & (point_cloud[:, 1] >= y_min)
+        & (point_cloud[:, 1] <= y_max)
+        & (point_cloud[:, 2] >= z_min)
+        & (point_cloud[:, 2] <= z_max)
     )
     point_cloud = point_cloud[mask]
 
@@ -47,12 +50,12 @@ def rasterize_bev_pillars(
     height = bev_height + 1
     width = bev_width + 1
 
-    _point_cloud = torch.clone(point_cloud) # Local copy required?
+    _point_cloud = torch.clone(point_cloud)  # Local copy required?
     _point_cloud = _point_cloud.to("cuda", dtype=torch.float32)
 
     # Discretize x and y coordinates
-    _point_cloud[:, 0] = (torch.floor(_point_cloud[:, 0] / discretization_coefficient))
-    _point_cloud[:, 1] = (torch.floor(_point_cloud[:, 1] / discretization_coefficient))
+    _point_cloud[:, 0] = torch.floor(_point_cloud[:, 0] / discretization_coefficient)
+    _point_cloud[:, 1] = torch.floor(_point_cloud[:, 1] / discretization_coefficient)
 
     # Get unique indices to rasterize and unique counts to compute the point density
     _, unique_indices, _, unique_counts = unique_torch(_point_cloud[:, 0:2], dim=0)
@@ -64,10 +67,10 @@ def rasterize_bev_pillars(
     density_map = torch.zeros((height, width), dtype=torch.float32, device="cuda")
 
     x_indices = _point_cloud_top[:, 0].int()
-    y_indices = _point_cloud_top[:, 1].int() 
+    y_indices = _point_cloud_top[:, 1].int()
 
     intensity_map[x_indices, y_indices] = _point_cloud_top[:, 3]
-    
+
     max_height = np.float32(np.abs(z_max - z_min))
     height_map[x_indices, y_indices] = _point_cloud_top[:, 2] / max_height
 
@@ -75,7 +78,9 @@ def rasterize_bev_pillars(
     normalized_counts = torch.clamp(normalized_counts, min=0.0, max=1.0)
     density_map[x_indices, y_indices] = normalized_counts
 
-    ihd_map = torch.zeros((3, bev_height, bev_width), dtype=torch.float32, device="cuda")
+    ihd_map = torch.zeros(
+        (3, bev_height, bev_width), dtype=torch.float32, device="cuda"
+    )
     ihd_map[0, :, :] = intensity_map[:bev_height, :bev_width]
     ihd_map[1, :, :] = height_map[:bev_height, :bev_width]
     ihd_map[2, :, :] = density_map[:bev_height, :bev_width]
@@ -86,14 +91,14 @@ def rasterize_bev_pillars(
 def convert_det_to_real_values(
     detections,
     discretization_coefficient: float = 50 / 608,
-    x_min: float = 0.,
-    y_min: float = -25.,
+    x_min: float = 0.0,
+    y_min: float = -25.0,
     z_min: float = -2.73,
     num_classes=3,
-    x_offset: float = 0., 
-    y_offset: float = 0., 
-    z_offset: float = 0., 
-    backwards: bool = False, 
+    x_offset: float = 0.0,
+    y_offset: float = 0.0,
+    z_offset: float = 0.0,
+    backwards: bool = False,
     rot_90: bool = False,
 ):
     kitti_dets = []
@@ -113,9 +118,23 @@ def convert_det_to_real_values(
                 z += z_offset
 
                 if backwards:
-                    kitti_dets.append([_score, cls_id, x * -1, y * -1, z, _h, w, l, _yaw + np.deg2rad(180)])
+                    kitti_dets.append(
+                        [
+                            _score,
+                            cls_id,
+                            x * -1,
+                            y * -1,
+                            z,
+                            _h,
+                            w,
+                            l,
+                            _yaw + np.deg2rad(180),
+                        ]
+                    )
                 elif rot_90:
-                    kitti_dets.append([_score, cls_id, -y, x, z, _h, w, l, _yaw - np.deg2rad(90)])
+                    kitti_dets.append(
+                        [_score, cls_id, -y, x, z, _h, w, l, _yaw - np.deg2rad(90)]
+                    )
                 else:
                     kitti_dets.append([_score, cls_id, x, y, z, _h, w, l, _yaw])
 
