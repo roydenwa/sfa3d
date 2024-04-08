@@ -5,13 +5,12 @@ import signal
 import rosnode
 import numpy as np
 
-
 from sensor_msgs.msg import Image
 from tf.transformations import quaternion_from_euler
 from jsk_recognition_msgs.msg import BoundingBox, BoundingBoxArray
 
 
-def unique_torch(x, dim: int = 0):
+def unique_torch(x, dim: int = 0) -> tuple:
     # Src: https://github.com/pytorch/pytorch/issues/36748
     unique, inverse, counts = torch.unique(
         x, dim=dim, sorted=True, return_inverse=True, return_counts=True
@@ -23,7 +22,15 @@ def unique_torch(x, dim: int = 0):
     return unique, index, inverse, counts
 
 
-def filter_point_cloud(point_cloud, x_min, x_max, y_min, y_max, z_min, z_max):
+def filter_point_cloud(
+    point_cloud: np.ndarray,
+    x_min: float,
+    x_max: float,
+    y_min: float,
+    y_max: float,
+    z_min: float,
+    z_max: float,
+) -> np.ndarray:
     mask = np.where(
         (point_cloud[:, 0] >= x_min)
         & (point_cloud[:, 0] <= x_max)
@@ -38,14 +45,14 @@ def filter_point_cloud(point_cloud, x_min, x_max, y_min, y_max, z_min, z_max):
 
 
 def rasterize_bev_pillars(
-    point_cloud,
+    point_cloud: torch.Tensor,
     discretization_coefficient: float = 50 / 608,
     bev_height: int = 608,
     bev_width: int = 608,
     z_max: float = 1.27,
     z_min: float = -2.73,
     n_lasers: int = 128,
-):
+) -> torch.Tensor:
     """Optimized PyTorch version of kitti_bev_utils.makeBEVMap"""
     height = bev_height + 1
     width = bev_width + 1
@@ -89,18 +96,18 @@ def rasterize_bev_pillars(
 
 
 def convert_det_to_real_values(
-    detections,
+    detections: np.ndarray,
     discretization_coefficient: float = 50 / 608,
     x_min: float = 0.0,
     y_min: float = -25.0,
     z_min: float = -2.73,
-    num_classes=3,
+    num_classes: int = 3,
     x_offset: float = 0.0,
     y_offset: float = 0.0,
     z_offset: float = 0.0,
     backwards: bool = False,
     rot_90: bool = False,
-):
+) -> np.ndarray:
     kitti_dets = []
     for cls_id in range(num_classes):
         if len(detections[cls_id]) > 0:
