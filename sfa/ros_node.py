@@ -5,13 +5,10 @@ import rospy
 import typer
 import numpy as np
 
-import concurrent.futures as cf
 from timeit import default_timer as timer
-
 from sensor_msgs.msg import PointCloud2
 from jsk_recognition_msgs.msg import BoundingBoxArray
 
-import config.kitti_config as cnf
 from ros_utils import (
     preprocess_point_cloud,
     bev_center_nms,
@@ -20,9 +17,8 @@ from ros_utils import (
     ego_nms,
     rasterize_bev_pillars,
     filter_point_cloud,
+    convert_det_to_real_values,
 )
-
-from utils.evaluation_utils import convert_det_to_real_values
 from models.model_utils import create_model
 from utils.demo_utils import parse_demo_configs, do_detect as detect
 
