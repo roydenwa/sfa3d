@@ -60,8 +60,8 @@ def parse_demo_configs():
     configs.pin_memory = True
     configs.distributed = False  # For testing on 1 GPU only
 
-    configs.input_size = (608, 608)
-    configs.hm_size = (152, 152)
+    configs.input_size = (1216, 608)
+    configs.hm_size = (304, 152)
     configs.down_ratio = 4
     configs.max_objects = 50
 

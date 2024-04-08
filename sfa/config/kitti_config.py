@@ -4,13 +4,27 @@ import numpy as np
 
 # Car and Van ==> Car class
 # Pedestrian and Person_Sitting ==> Pedestrian Class
+# CLASS_NAME_TO_ID = {
+#     'Pedestrian': 0,
+#     'Car': 1,
+#     'Cyclist': 2,
+#     'Van': 1,
+#     'Truck': -3,
+#     'Person_sitting': 0,
+#     'Tram': -99,
+#     'Misc': -99,
+#     'DontCare': -1
+# }
+
 CLASS_NAME_TO_ID = {
     'Pedestrian': 0,
     'Car': 1,
-    'Cyclist': 2,
     'Van': 1,
-    'Truck': -3,
-    'Person_sitting': 0,
+    'Truck': 1,
+    'Bus': 1,
+    'Cyclist': 2,
+    'Motorcyclist': 2,
+    'E-scooter': 2,
     'Tram': -99,
     'Misc': -99,
     'DontCare': -1
@@ -21,8 +35,8 @@ colors = [[0, 255, 255], [0, 0, 255], [255, 0, 0], [255, 120, 0],
 
 #####################################################################################
 boundary = {
-    "minX": 0,
-    "maxX": 50,
+    "minX": 0,# 0,
+    "maxX": 50, # 50
     "minY": -25,
     "maxY": 25,
     "minZ": -2.73,
@@ -42,9 +56,23 @@ boundary_back = {
     "maxZ": 1.27
 }
 
-BEV_WIDTH = 608  # across y axis -25m ~ 25m
+BEV_WIDTH = 608 * 2  # across y axis -25m ~ 25m
+# BEV_WIDTH = 608  # across y axis -25m ~ 25m
 BEV_HEIGHT = 608  # across x axis 0m ~ 50m
-DISCRETIZATION = (boundary["maxX"] - boundary["minX"]) / BEV_HEIGHT
+# BEV_HEIGHT = 608 * 2  # across x axis 0m ~ 50m
+# DISCRETIZATION = (boundary["maxX"] - boundary["minX"]) / BEV_HEIGHT
+DISCRETIZATION = (boundary["maxX"] - boundary["minX"]) / BEV_WIDTH
+X_DISCRETIZATION = (boundary["maxX"] - boundary["minX"]) / BEV_HEIGHT
+Y_DISCRETIZATION = (boundary["maxY"] - boundary["minY"]) / BEV_WIDTH
+
+BEV_WIDTH = 608  # across y axis -25m ~ 25m
+# BEV_WIDTH = 608  # across y axis -25m ~ 25m
+BEV_HEIGHT = 608  # across x axis 0m ~ 50m
+# BEV_HEIGHT = 608 * 2  # across x axis 0m ~ 50m
+# DISCRETIZATION = (boundary["maxX"] - boundary["minX"]) / BEV_HEIGHT
+DISCRETIZATION = (boundary["maxX"] - boundary["minX"]) / BEV_WIDTH
+X_DISCRETIZATION = (boundary["maxX"] - boundary["minX"]) / BEV_HEIGHT
+Y_DISCRETIZATION = (boundary["maxY"] - boundary["minY"]) / BEV_WIDTH
 
 # maximum number of points per voxel
 T = 35
