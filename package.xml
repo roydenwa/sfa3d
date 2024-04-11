@@ -1,0 +1,10 @@
+<package format="2">
+  <name>sfa3d</name>
+  <version>0.0.0</version>
+  <description>3D detector for the Adenauer project</description>
+
+  <license>MRT</license>
+  <maintainer email="royden.wagner@kit.edu">Royden Wagner</maintainer>
+  <author email="royden.wagner@kit.edu">Royden Wagner</author>
+  <url type="repository">https://gitlab.mrt.kit.edu/MRT/draft/sfa3d</url>
+</package>
