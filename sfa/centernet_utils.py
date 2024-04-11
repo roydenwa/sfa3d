@@ -3,18 +3,34 @@ import numpy as np
 import torch.nn.functional as F
 
 
-def detect(model, bev_pillars, top_k: int = 50, n_classes: int = 3, down_ratio: int = 4, peak_thresh: float = 0.2, class_idx: int = None):
+def detect(
+    model,
+    bev_pillars,
+    top_k: int = 50,
+    n_classes: int = 3,
+    down_ratio: int = 4,
+    peak_thresh: float = 0.2,
+    class_idx: int = None,
+):
     outputs = model(bev_pillars.unsqueeze(0))
-    outputs['hm_cen'] = _sigmoid(outputs['hm_cen'])
-    outputs['cen_offset'] = _sigmoid(outputs['cen_offset'])
-    
+    outputs["hm_cen"] = _sigmoid(outputs["hm_cen"])
+    outputs["cen_offset"] = _sigmoid(outputs["cen_offset"])
+
     # detections size (batch_size, K, 10)
-    detections = decode(outputs['hm_cen'], outputs['cen_offset'], outputs['direction'], outputs['z_coor'],
-                        outputs['dim'], K=top_k)
+    detections = decode(
+        outputs["hm_cen"],
+        outputs["cen_offset"],
+        outputs["direction"],
+        outputs["z_coor"],
+        outputs["dim"],
+        K=top_k,
+    )
     detections = detections.cpu().numpy().astype(np.float32)
-    
+
     if class_idx is not None:
-        detections = post_process(detections, n_classes, down_ratio, peak_thresh, class_idx=class_idx)
+        detections = post_process(
+            detections, n_classes, down_ratio, peak_thresh, class_idx=class_idx
+        )
     else:
         detections = post_process(detections, n_classes, down_ratio, peak_thresh)
 
@@ -52,7 +68,14 @@ def decode(hm_cen, cen_offset, direction, z_coor, dim, K=40):
     return detections
 
 
-def post_process(detections, num_classes=3, down_ratio=4, peak_thresh=0.2, class_idx: int = None, discretization_coefficient: float = 50 / 608):
+def post_process(
+    detections,
+    num_classes=3,
+    down_ratio=4,
+    peak_thresh=0.2,
+    class_idx: int = None,
+    discretization_coefficient: float = 50 / 608,
+):
     """
     :param detections: [batch_size, K, 10]
     # (scores x 1, xs x 1, ys x 1, z_coor x 1, dim x 3, direction x 2, clses x 1)
@@ -66,30 +89,35 @@ def post_process(detections, num_classes=3, down_ratio=4, peak_thresh=0.2, class
         top_preds = {}
         classes = detections[i, :, -1]
         for j in range(num_classes):
-            inds = (classes == j)
+            inds = classes == j
             # x, y, z, h, w, l, yaw
-            top_preds[j] = np.concatenate([
-                detections[i, inds, 0:1],
-                detections[i, inds, 1:2] * down_ratio,
-                detections[i, inds, 2:3] * down_ratio,
-                detections[i, inds, 3:4],
-                detections[i, inds, 4:5],
-                detections[i, inds, 5:6] / discretization_coefficient,
-                detections[i, inds, 6:7] / discretization_coefficient,
-                get_yaw(detections[i, inds, 7:9]).astype(np.float32)], axis=1)
+            top_preds[j] = np.concatenate(
+                [
+                    detections[i, inds, 0:1],
+                    detections[i, inds, 1:2] * down_ratio,
+                    detections[i, inds, 2:3] * down_ratio,
+                    detections[i, inds, 3:4],
+                    detections[i, inds, 4:5],
+                    detections[i, inds, 5:6] / discretization_coefficient,
+                    detections[i, inds, 6:7] / discretization_coefficient,
+                    get_yaw(detections[i, inds, 7:9]).astype(np.float32),
+                ],
+                axis=1,
+            )
 
             # Filter by peak_thresh
             if len(top_preds[j]) > 0:
-                keep_inds = (top_preds[j][:, 0] > peak_thresh)
+                keep_inds = top_preds[j][:, 0] > peak_thresh
                 top_preds[j] = top_preds[j][keep_inds]
 
             # Workaround for vehicle-only detection
             if class_idx and j != class_idx:
                 top_preds[j] = []
-        
+
         ret.append(top_preds)
 
     return ret
+
 
 def convert_det_to_real_values(
     detections: np.ndarray,
