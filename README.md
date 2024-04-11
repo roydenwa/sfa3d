@@ -2,7 +2,7 @@
 
 **Input representation:** 
 
-non-learned birds-eye-view (BEV) [pillars](https://arxiv.org/abs/1812.05784) generated from point clouds.
+non-learned bird's-eye view (BEV) [pillars](https://arxiv.org/abs/1812.05784) generated from point clouds.
 Pillar features are max. intensity, max. height and point density (see `point_cloud_utils.rasterize_bev_pillars`). Default BEV resolution: 1216x608 px (100x50 m, -25 to 75 m and -25 to 25 m)
 
 **Output representation:** 
