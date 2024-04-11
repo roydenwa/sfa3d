@@ -1,9 +1,13 @@
 # SFA3D: CenterNet for 3D detection using point pillars
 
-Input representation: non-learned birds-eye-view (BEV) [pillars](https://arxiv.org/abs/1812.05784) generated from point clouds.
+**Input representation:** 
+
+non-learned birds-eye-view (BEV) [pillars](https://arxiv.org/abs/1812.05784) generated from point clouds.
 Pillar features are max. intensity, max. height and point density (see `point_cloud_utils.rasterize_bev_pillars`). Default BEV resolution: 1216x608 px (100x50 m, -25 to 75 m and -25 to 25 m)
 
-Output representation: [CenterNet](https://arxiv.org/abs/1904.07850)-like heatmaps for BEV object centers and regression maps for object dimensions (h, w, l) and orientation (sin(yaw), cos(yaw)). Anchor-free and fully-convolutional ([ResNet-18](https://arxiv.org/abs/1512.03385) + [Feature Pyramid](https://arxiv.org/abs/1612.03144)) -> adapts to different input resolutions
+**Output representation:** 
+
+[CenterNet](https://arxiv.org/abs/1904.07850)-like heatmaps for BEV object centers and regression maps for object dimensions (h, w, l) and orientation (sin(yaw), cos(yaw)). Anchor-free and fully-convolutional ([ResNet-18](https://arxiv.org/abs/1512.03385) + [Feature Pyramid](https://arxiv.org/abs/1612.03144)) -> adapts to different input resolutions
 
 ## How to build the docker image for inference
 ```bash
