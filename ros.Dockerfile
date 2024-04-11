@@ -6,4 +6,5 @@ RUN pip install pcl-py easydict==1.9 "typer[all]" wget
 
 ADD . .
 
-CMD /bin/bash -c "source /opt/ros/noetic/setup.bash && cd sfa && python3 ros_node.py"
+ENV LOG_LEVEL 2
+CMD /bin/bash -c "source /opt/ros/noetic/setup.bash && cd sfa && python3 ros_node.py --log-level ${LOG_LEVEL}"

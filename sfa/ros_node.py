@@ -23,7 +23,6 @@ from centernet_model import get_center_net
 
 
 def main(log_level: int = rospy.INFO) -> None:
-# def main(log_level: int = rospy.DEBUG) -> None:
     def perception_callback(*data):
         pcd_msg_delay = rospy.rostime.Time.now() - data[0].header.stamp
 
