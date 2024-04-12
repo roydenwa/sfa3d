@@ -1,0 +1,13 @@
+docker_image:
+  image: docker:20.10
+  services:
+    - docker:20.10-dind
+  variables:
+    GIT_STRATEGY: clone
+    MRT_DOCKER_IMAGE_CMD: "/bin/bash"
+  cache: {}
+  before_script: []
+  script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker build --network host -t $CI_REGISTRY_IMAGE:latest -f $CI_PROJECT_NAME/ros.Dockerfile .
+    - docker push $CI_REGISTRY_IMAGE:latest
