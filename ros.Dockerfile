@@ -1,4 +1,4 @@
-FROM mrt_pytorch_ros_base:latest
+FROM gitlab.mrt.kit.edu:21443/pub/pytorch_ros_deployment/mrt_pytorch_ros_base:latest
 
 RUN sudo apt-get update && sudo apt-get install -y ros-noetic-pcl-ros ros-noetic-jsk-recognition-msgs
 RUN pip install scikit-build==0.17.6
