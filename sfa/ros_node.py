@@ -10,7 +10,6 @@ from jsk_recognition_msgs.msg import BoundingBoxArray
 
 from ros_utils import (
     bboxes_to_rosmsg,
-    shutdown_callback,
 )
 from point_cloud_utils import (
     preprocess_point_cloud,
@@ -22,7 +21,7 @@ from centernet_utils import detect, convert_det_to_real_values
 from centernet_model import get_center_net
 
 
-def main(log_level: int = rospy.INFO) -> None:
+def main(log_level: int = rospy.INFO, node_name: str = "sfa3d_detector") -> None:
     def perception_callback(*data):
         pcd_msg_delay = rospy.rostime.Time.now() - data[0].header.stamp
 
@@ -125,7 +124,7 @@ def main(log_level: int = rospy.INFO) -> None:
     model(bev_pillars)
     print("Model initialized.")
 
-    rospy.init_node("sfa3d_detector", log_level=log_level)
+    rospy.init_node(name=node_name, log_level=log_level)
 
     point_cloud_sub = rospy.Subscriber(
         name="/sensor/lidar/box_top/center/vls128_ap/points",
@@ -141,7 +140,6 @@ def main(log_level: int = rospy.INFO) -> None:
         queue_size=1,
     )
 
-    rospy.Timer(rospy.Duration(secs=3), callback=shutdown_callback)
     rospy.spin()
 
 
