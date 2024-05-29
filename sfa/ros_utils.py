@@ -65,5 +65,5 @@ def bboxes_to_rosmsg(
 
 
 def shutdown_callback(event):
-    if not "rviz" in "".join(rosnode.get_node_names()):
+    if not "mon" in "".join(rosnode.get_node_names()):
         os.kill(os.getpid(), signal.SIGTERM)
