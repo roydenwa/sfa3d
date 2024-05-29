@@ -20,11 +20,13 @@ from ros_utils import (
     convert_det_to_real_values,
 )
 from models.model_utils import create_model
-from utils.demo_utils import parse_demo_configs, do_detect as detect
+# from utils.demo_utils import parse_demo_configs, do_detect as detect
+from centernet_utils import detect
+from models import fpn_resnet
 
 
-def main(log_level: int = rospy.INFO) -> None:
-# def main(log_level: int = rospy.DEBUG) -> None:
+# def main(log_level: int = rospy.INFO) -> None:
+def main(log_level: int = rospy.DEBUG) -> None:
     def perception_callback(*data):
         pcd_msg_delay = rospy.rostime.Time.now() - data[0].header.stamp
 
@@ -66,8 +68,8 @@ def main(log_level: int = rospy.INFO) -> None:
         to_bev_pillars_end = timer()
 
         with torch.inference_mode():
-            detections, *_ = detect(
-                configs,
+            detections = detect(
+                # configs,
                 model,
                 bev_pillars,
                 peak_thresh=0.2,
@@ -104,19 +106,32 @@ def main(log_level: int = rospy.INFO) -> None:
             )
             rospy.logdebug(f"Total latency: {publish_end - start_time} s")
 
-    configs = parse_demo_configs()
-    configs.device = torch.device(
-        "cpu" if configs.no_cuda else "cuda:{}".format(configs.gpu_idx)
+    # configs = parse_demo_configs()
+    # configs.device = torch.device(
+    #     "cpu" if configs.no_cuda else "cuda:{}".format(configs.gpu_idx)
+    # )
+
+    model = fpn_resnet.get_pose_net(
+        num_layers=18, 
+        heads={
+            'hm_cen': 3,
+            'cen_offset': 2,
+            'direction': 2,
+            'z_coor': 1,
+            'dim': 3,
+        }, 
+        head_conv=64,
+        imagenet_pretrained=False
     )
 
-    model = create_model(configs)
+    # model = create_model(configs)
     model.load_state_dict(
         torch.load(
             "../checkpoints/fpn_resnet_18/Model_fpn_resnet_18_epoch_8.pth",
             map_location="cpu",
         )
     )
-    model = model.to(configs.device)
+    model = model.to("cuda")
     bev_pillars = torch.zeros((1, 3, 1216, 608), dtype=torch.float32, device="cuda")
     model(bev_pillars)
     print("Model initialized.")
