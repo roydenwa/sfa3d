@@ -114,7 +114,7 @@ def main(log_level: int = rospy.INFO) -> None:
 
     model.load_state_dict(
         torch.load(
-            "../checkpoints/fpn_resnet_18_epoch_8.pth",
+            "/workspace/catkin_ws/src/sfa3d_ros_tool/checkpoints/fpn_resnet_18_epoch_8.pth",
             map_location="cpu",
         )
     )
