@@ -1,8 +1,10 @@
+#!/usr/bin/env python3
 import pcl
 import torch
 import rospy
 import typer
 import numpy as np
+import roslaunch
 
 from timeit import default_timer as timer
 from sensor_msgs.msg import PointCloud2
@@ -141,7 +143,6 @@ def main(log_level: int = rospy.INFO) -> None:
         queue_size=1,
     )
 
-    rospy.Timer(rospy.Duration(secs=3), callback=shutdown_callback)
     rospy.spin()
 
 
