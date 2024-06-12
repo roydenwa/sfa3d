@@ -6,5 +6,5 @@ RUN pip install pcl-py easydict==1.9 "typer[all]" wget
 
 ADD . .
 
-ENV LOG_LEVEL 2
-CMD /bin/bash -c "source /opt/ros/noetic/setup.bash && cd sfa && python3 ros_node.py --log-level ${LOG_LEVEL}"
+RUN cd /workspace/catkin_ws && catkin build
+CMD /bin/bash -c "source /opt/ros/noetic/setup.bash && source /workspace/catkin_ws/devel/setup.bash && roslaunch sfa3d sfa3d.launch"
