@@ -2,9 +2,6 @@
 import pcl
 import torch
 import rospy
-import typer
-import numpy as np
-import roslaunch
 
 from timeit import default_timer as timer
 from sensor_msgs.msg import PointCloud2
@@ -12,7 +9,6 @@ from jsk_recognition_msgs.msg import BoundingBoxArray
 
 from ros_utils import (
     bboxes_to_rosmsg,
-    shutdown_callback,
 )
 from point_cloud_utils import (
     preprocess_point_cloud,
@@ -147,7 +143,4 @@ def main(log_level: int = rospy.INFO) -> None:
 
 
 if __name__ == "__main__":
-    try:
-        typer.run(main)
-    except rospy.ROSInterruptException:
-        rospy.logerr_once("Exiting due to ROSInterruptException")
+    main()
