@@ -1,0 +1,3 @@
+<launch>
+    <node name="sfa3d_node" pkg="sfa3d" type="ros_node.py" output="screen"/>
+</launch>
