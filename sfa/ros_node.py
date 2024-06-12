@@ -24,16 +24,14 @@ def main(log_level: int = rospy.INFO) -> None:
     def perception_callback(*data):
         pcd_msg_delay = rospy.rostime.Time.now() - data[0].header.stamp
 
-        if not log_level == rospy.DEBUG:
-            if pcd_msg_delay.to_sec() > 0.15:
-                rospy.loginfo(
-                    "Dropping point cloud message since the delay to ROS time now > 0.15 s."
-                )
-                return
-        else:
-            rospy.logdebug(
-                f"Point cloud message delay to ROS time now: {pcd_msg_delay.to_sec()} s"
+        if pcd_msg_delay.to_sec() > 0.15:
+            rospy.loginfo(
+                "Dropping point cloud message since the delay to ROS time now > 0.15 s."
             )
+            return
+        rospy.logdebug(
+            f"Point cloud message delay to ROS time now: {pcd_msg_delay.to_sec()} s"
+        )
 
         start_time = timer()
         point_cloud = pcl.PointCloud(data[0])
@@ -80,24 +78,23 @@ def main(log_level: int = rospy.INFO) -> None:
         bbox_pub.publish(rosboxes)
         publish_end = timer()
 
-        if log_level == rospy.DEBUG:
-            rospy.logdebug(
-                f"Deserialization latency: {deserialization_end - start_time} s"
-            )
-            rospy.logdebug(
-                f"Pre-processing latency: {preprocessing_end - deserialization_end} s"
-            )
-            rospy.logdebug(
-                f"To BEV pillars latency: {to_bev_pillars_end - preprocessing_end} s"
-            )
-            rospy.logdebug(f"Inference latency: {inference_end - to_bev_pillars_end} s")
-            rospy.logdebug(
-                f"Post-processing latency: {postprocessing_end - inference_end} s"
-            )
-            rospy.logdebug(
-                f"Message publishing latency: {publish_end - postprocessing_end} s"
-            )
-            rospy.logdebug(f"Total latency: {publish_end - start_time} s")
+        rospy.logdebug(
+            f"Deserialization latency: {deserialization_end - start_time} s"
+        )
+        rospy.logdebug(
+            f"Pre-processing latency: {preprocessing_end - deserialization_end} s"
+        )
+        rospy.logdebug(
+            f"To BEV pillars latency: {to_bev_pillars_end - preprocessing_end} s"
+        )
+        rospy.logdebug(f"Inference latency: {inference_end - to_bev_pillars_end} s")
+        rospy.logdebug(
+            f"Post-processing latency: {postprocessing_end - inference_end} s"
+        )
+        rospy.logdebug(
+            f"Message publishing latency: {publish_end - postprocessing_end} s"
+        )
+        rospy.logdebug(f"Total latency: {publish_end - start_time} s")
 
     model = get_center_net(
         num_layers=18,
