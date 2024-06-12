@@ -51,9 +51,9 @@ def main(log_level: int = rospy.INFO) -> None:
         )
 
         # Set min to (0, 0, 0)
-        point_cloud[:, 0] -= -25
-        point_cloud[:, 1] -= -25
-        point_cloud[:, 2] -= -2.73
+        point_cloud[:, 0] += 25
+        point_cloud[:, 1] += 25
+        point_cloud[:, 2] += 2.73
 
         point_cloud = torch.from_numpy(point_cloud)
         preprocessing_end = timer()
