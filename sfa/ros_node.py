@@ -29,9 +29,6 @@ def main(log_level: int = rospy.INFO) -> None:
                 "Dropping point cloud message since the delay to ROS time now > 0.15 s."
             )
             return
-        rospy.logdebug(
-            f"Point cloud message delay to ROS time now: {pcd_msg_delay.to_sec()} s"
-        )
 
         start_time = timer()
         point_cloud = pcl.PointCloud(data[0])
@@ -95,6 +92,9 @@ def main(log_level: int = rospy.INFO) -> None:
             f"Message publishing latency: {publish_end - postprocessing_end} s"
         )
         rospy.logdebug(f"Total latency: {publish_end - start_time} s")
+        rospy.logdebug(
+            f"Point cloud message delay to ROS time now: {pcd_msg_delay.to_sec()} s"
+        )
 
     model = get_center_net(
         num_layers=18,
