@@ -20,14 +20,19 @@ from centernet_utils import detect, convert_det_to_real_values
 from centernet_model import get_center_net
 
 
+previous_total_latency = 0.0
+
+
 def main(log_level: int = rospy.INFO) -> None:
     def perception_callback(*data):
+        global previous_total_latency
         pcd_msg_delay = rospy.rostime.Time.now() - data[0].header.stamp
 
-        if pcd_msg_delay.to_sec() > 0.15:
+        if previous_total_latency > 0.2:
             rospy.loginfo(
-                "Dropping point cloud message since the delay to ROS time now > 0.15 s."
+                f"Dropping point cloud message since the previous total latency was > 0.2s ({previous_total_latency:.2}s)."
             )
+            previous_total_latency = 0.0
             return
 
         start_time = timer()
@@ -95,6 +100,7 @@ def main(log_level: int = rospy.INFO) -> None:
         rospy.logdebug(
             f"Point cloud message delay to ROS time now: {pcd_msg_delay.to_sec()} s"
         )
+        previous_total_latency = publish_end - start_time
 
     model = get_center_net(
         num_layers=18,
