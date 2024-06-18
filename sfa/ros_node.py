@@ -8,9 +8,7 @@ from timeit import default_timer as timer
 from sensor_msgs.msg import PointCloud2
 from jsk_recognition_msgs.msg import BoundingBoxArray
 
-from ros_utils import (
-    bboxes_to_rosmsg,
-)
+from ros_utils import bboxes_to_rosmsg
 from point_cloud_utils import (
     preprocess_point_cloud,
     filter_point_cloud,
