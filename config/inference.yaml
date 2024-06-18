@@ -24,3 +24,11 @@ filter_point_cloud:
 
 bev_height: 1216
 bev_width: 608
+
+detect:
+  top_k: 50 # Max num of objects
+  peak_thresh: 0.2 # Thresh applied to object center heatmap
+
+bev_center_nms:
+  thresh_x: 2.0
+  thresh_y: 1.5

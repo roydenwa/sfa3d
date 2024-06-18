@@ -61,14 +61,14 @@ def main(log_level: int = rospy.INFO) -> None:
             detections = detect(
                 model,
                 bev_pillars,
-                peak_thresh=0.2,
+                **config["detect"]
             )
         inference_end = timer()
 
         # Post-processing
         # bbox = [confidence, cls_id, x, y, z, h, w, l, yaw]
         bboxes = convert_det_to_real_values(detections=detections, x_offset=config["filter_point_cloud"]["x_min"])
-        bboxes = bev_center_nms(bboxes, thresh_x=2.0, thresh_y=1.5)
+        bboxes = bev_center_nms(bboxes, **config["bev_center_nms"])
         bboxes = ego_nms(bboxes)
         rosboxes = bboxes_to_rosmsg(bboxes, data[0].header.stamp)
 
