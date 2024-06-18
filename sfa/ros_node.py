@@ -3,6 +3,7 @@ import pcl
 import torch
 import rospy
 
+from omegaconf import OmegaConf
 from timeit import default_timer as timer
 from sensor_msgs.msg import PointCloud2
 from jsk_recognition_msgs.msg import BoundingBoxArray
@@ -42,23 +43,18 @@ def main(log_level: int = rospy.INFO) -> None:
         point_cloud = preprocess_point_cloud(point_cloud)
         point_cloud = filter_point_cloud(
             point_cloud,
-            x_min=-25,
-            x_max=75,
-            y_min=-25,
-            y_max=25,
-            z_min=-2.73,
-            z_max=1.27,
+            **config["filter_point_cloud"]
         )
 
         # Set min to (0, 0, 0)
-        point_cloud[:, 0] += 25
-        point_cloud[:, 1] += 25
-        point_cloud[:, 2] += 2.73
+        point_cloud[:, 0] -= config["filter_point_cloud"]["x_min"]
+        point_cloud[:, 1] -= config["filter_point_cloud"]["y_min"]
+        point_cloud[:, 2] -= config["filter_point_cloud"]["z_min"]
 
         point_cloud = torch.from_numpy(point_cloud)
         preprocessing_end = timer()
 
-        bev_pillars = rasterize_bev_pillars(point_cloud, bev_height=608 * 2)
+        bev_pillars = rasterize_bev_pillars(point_cloud, bev_height=config["bev_height"], device=config["device"])
         to_bev_pillars_end = timer()
 
         with torch.inference_mode():
@@ -71,7 +67,7 @@ def main(log_level: int = rospy.INFO) -> None:
 
         # Post-processing
         # bbox = [confidence, cls_id, x, y, z, h, w, l, yaw]
-        bboxes = convert_det_to_real_values(detections=detections, x_offset=-25)
+        bboxes = convert_det_to_real_values(detections=detections, x_offset=config["filter_point_cloud"]["x_min"])
         bboxes = bev_center_nms(bboxes, thresh_x=2.0, thresh_y=1.5)
         bboxes = ego_nms(bboxes)
         rosboxes = bboxes_to_rosmsg(bboxes, data[0].header.stamp)
@@ -102,34 +98,27 @@ def main(log_level: int = rospy.INFO) -> None:
         )
         previous_total_latency = publish_end - start_time
 
+    config = OmegaConf.load("/workspace/catkin_ws/src/config/inference.yaml")
+
     model = get_center_net(
-        num_layers=18,
-        heads={
-            "hm_cen": 3,
-            "cen_offset": 2,
-            "direction": 2,
-            "z_coor": 1,
-            "dim": 3,
-        },
-        head_conv=64,
-        imagenet_pretrained=False,
+        **config["model"]
     )
 
     model.load_state_dict(
         torch.load(
-            "/workspace/catkin_ws/src/checkpoints/fpn_resnet_18_epoch_8.pth",
+            config["checkpoint"],
             map_location="cpu",
         )
     )
-    model = model.to("cuda")
-    bev_pillars = torch.zeros((1, 3, 1216, 608), dtype=torch.float32, device="cuda")
+    model = model.to(config["device"])
+    bev_pillars = torch.zeros((1, 3, config["bev_height"], config["bev_width"]), dtype=torch.float32, device=config["device"])
     model(bev_pillars)
     print("Model initialized.")
 
     rospy.init_node("sfa3d_detector", log_level=log_level)
 
     point_cloud_sub = rospy.Subscriber(
-        name="/sensor/lidar/box_top/center/vls128_ap/points",
+        name=config["point_cloud_topic"],
         data_class=PointCloud2,
         callback=perception_callback,
         queue_size=1,
@@ -137,7 +126,7 @@ def main(log_level: int = rospy.INFO) -> None:
     )
 
     bbox_pub = rospy.Publisher(
-        name="/perception/sfa3d/bboxes",
+        name=config["bbox_topic"],
         data_class=BoundingBoxArray,
         queue_size=1,
     )

@@ -1,0 +1,26 @@
+model:
+  num_layers: 18
+  heads: # Channel dim of the top layer (i.e., num of pred features)
+    hm_cen: 3
+    cen_offset: 2
+    direction: 2
+    z_coor: 1
+    dim: 3
+  head_conv: 64 # Num of conv filters before the top layer
+  imagenet_pretrained: False
+
+checkpoint: "/workspace/catkin_ws/src/checkpoints/fpn_resnet_18_epoch_8.pth"
+device: "cuda"
+point_cloud_topic: "/sensor/lidar/box_top/center/vls128_ap/points"
+bbox_topic: "/perception/sfa3d/bboxes"
+
+filter_point_cloud:
+  x_min: -25
+  x_max: 75
+  y_min: -25
+  y_max: 25
+  z_min: -2.73
+  z_max: 1.27
+
+bev_height: 1216
+bev_width: 608
