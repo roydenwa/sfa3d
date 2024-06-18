@@ -11,13 +11,14 @@ def rasterize_bev_pillars(
     z_max: float = 1.27,
     z_min: float = -2.73,
     n_lasers: int = 128,
+    device: str = "cuda",
 ) -> torch.Tensor:
     """Optimized PyTorch version of kitti_bev_utils.makeBEVMap"""
     height = bev_height + 1
     width = bev_width + 1
 
     _point_cloud = torch.clone(point_cloud)  # Local copy required?
-    _point_cloud = _point_cloud.to("cuda", dtype=torch.float32)
+    _point_cloud = _point_cloud.to(device, dtype=torch.float32)
 
     # Discretize x and y coordinates
     _point_cloud[:, 0] = torch.floor(_point_cloud[:, 0] / discretization_coefficient)
@@ -28,9 +29,9 @@ def rasterize_bev_pillars(
     _point_cloud_top = _point_cloud[unique_indices]
 
     # Intensity, height and density maps
-    intensity_map = torch.zeros((height, width), dtype=torch.float32, device="cuda")
-    height_map = torch.zeros((height, width), dtype=torch.float32, device="cuda")
-    density_map = torch.zeros((height, width), dtype=torch.float32, device="cuda")
+    intensity_map = torch.zeros((height, width), dtype=torch.float32, device=device)
+    height_map = torch.zeros((height, width), dtype=torch.float32, device=device)
+    density_map = torch.zeros((height, width), dtype=torch.float32, device=device)
 
     x_indices = _point_cloud_top[:, 0].int()
     y_indices = _point_cloud_top[:, 1].int()
@@ -45,7 +46,7 @@ def rasterize_bev_pillars(
     density_map[x_indices, y_indices] = normalized_counts
 
     ihd_map = torch.zeros(
-        (3, bev_height, bev_width), dtype=torch.float32, device="cuda"
+        (3, bev_height, bev_width), dtype=torch.float32, device=device
     )
     ihd_map[0, :, :] = intensity_map[:bev_height, :bev_width]
     ihd_map[1, :, :] = height_map[:bev_height, :bev_width]
