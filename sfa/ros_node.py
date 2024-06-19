@@ -52,7 +52,13 @@ def main(log_level: int = rospy.INFO) -> None:
         point_cloud = torch.from_numpy(point_cloud)
         preprocessing_end = timer()
 
-        bev_pillars = rasterize_bev_pillars(point_cloud, bev_height=config["bev_height"], device=config["device"])
+        bev_pillars = rasterize_bev_pillars(
+            point_cloud, 
+            **config["rasterize_bev_pillars"], 
+            z_max=config["filter_point_cloud"]["z_max"],
+            z_min=config["filter_point_cloud"]["z_min"],
+            device=config["device"],
+        )
         to_bev_pillars_end = timer()
 
         with torch.inference_mode():
@@ -68,7 +74,11 @@ def main(log_level: int = rospy.INFO) -> None:
         bboxes = convert_det_to_real_values(detections=detections, x_offset=config["filter_point_cloud"]["x_min"])
         bboxes = bev_center_nms(bboxes, **config["bev_center_nms"])
         bboxes = ego_nms(bboxes)
-        rosboxes = bboxes_to_rosmsg(bboxes, data[0].header.stamp)
+        rosboxes = bboxes_to_rosmsg(
+            bboxes, 
+            timestamp=data[0].header.stamp,
+            frame_id=config["bbox_topic_frame_id"],
+        )
 
         postprocessing_end = timer()
         bbox_pub.publish(rosboxes)
@@ -109,7 +119,11 @@ def main(log_level: int = rospy.INFO) -> None:
         )
     )
     model = model.to(config["device"])
-    bev_pillars = torch.zeros((1, 3, config["bev_height"], config["bev_width"]), dtype=torch.float32, device=config["device"])
+    bev_pillars = torch.zeros(
+        (1, 3, config["rasterize_bev_pillars"]["bev_height"], config["rasterize_bev_pillars"]["bev_width"]), 
+        dtype=torch.float32, 
+        device=config["device"],
+    )
     model(bev_pillars)
     print("Model initialized.")
 

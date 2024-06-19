@@ -1,5 +1,6 @@
 point_cloud_topic: "/sensor/lidar/box_top/center/vls128_ap/points"
 bbox_topic: "/perception/sfa3d/bboxes"
+bbox_topic_frame_id: "sensor/lidar/box_top/center/vls128_ap"
 checkpoint: "/workspace/catkin_ws/src/checkpoints/fpn_resnet_18_epoch_8.pth"
 device: "cuda"
 
@@ -22,8 +23,11 @@ filter_point_cloud:
   z_min: -2.73
   z_max: 1.27
 
-bev_height: 1216
-bev_width: 608
+rasterize_bev_pillars:
+  bev_height: 1216
+  bev_width: 608
+  discretization_coefficient: 0.08223684210526316 # 50m / 608px (same resolution in x and y)
+  n_lasers: 128
 
 detect:
   top_k: 50 # Max num of objects
