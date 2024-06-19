@@ -15,7 +15,7 @@ docker build -f ros.Dockerfile -t <IMAGE_NAME>:<IMAGE_TAG> .
 ```
 
 ## How to test the model locally
-1. Get rosbag with PointCloud2 message named `/sensor/lidar/box_top/center/vls128_ap/points`
+1. Get rosbag with PointCloud2 message named as the "point_cloud_topic" in `config/inference.yaml` (default: "/sensor/lidar/box_top/center/vls128_ap/points")
 2. Start a `roscore` and `rviz`
 3. Start the detection docker container with: 
     ```bash
@@ -25,7 +25,7 @@ docker build -f ros.Dockerfile -t <IMAGE_NAME>:<IMAGE_TAG> .
     ```bash
     rosbag play -r 0.2 <ROSBAG_NAME>
     ```
-5. Visualize the PointCloud2 and the BoundingBoxArray message `/perception/sfa3d/bboxes` in rviz. E.g.:
+5. Visualize the PointCloud2 and the BoundingBoxArray message (default: "/perception/sfa3d/bboxes") in rviz. E.g.:
 <img src="./images/sfa3d_detections.png" width="500px"></img>
 
 ## How to retrain the model
