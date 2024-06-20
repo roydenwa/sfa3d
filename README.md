@@ -19,7 +19,7 @@ docker build -f ros.Dockerfile -t <IMAGE_NAME>:<IMAGE_TAG> .
 2. Start a `roscore` and `rviz`
 3. Start the detection docker container with: 
     ```bash
-    docker run -it --gpus all --net host --rm --name sfa3d <IMAGE_NAME>:<IMAGE_TAG>
+    docker run -it --gpus all --net host --rm --name sfa3d <IMAGE_NAME>:<IMAGE_TAG> roslaunch sfa3d sfa3d.launch
     ```
 4. Play the rosbag with a reduced frame rate 
     ```bash
